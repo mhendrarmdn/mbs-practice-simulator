@@ -49,8 +49,18 @@ export async function rpc(name, params) {
 
   const text = await response.text();
   if (!response.ok) {
-    const error = new Error(text || `HTTP ${response.status}`);
+    let parsed = null;
+    try { parsed = text ? JSON.parse(text) : null; } catch {}
+    const rawMessage = parsed?.message || text || `HTTP ${response.status}`;
+    const digestMissing = parsed?.code === '42883' && String(rawMessage).includes('digest');
+    const error = new Error(
+      digestMissing
+        ? 'Supabase pgcrypto belum terlihat oleh RPC room. Jalankan migration supabase/fix_pgcrypto_search_path_v131.sql di Supabase SQL Editor, lalu coba Create Online Room lagi.'
+        : rawMessage
+    );
     error.status = response.status;
+    error.code = parsed?.code || '';
+    error.details = parsed?.details || null;
     throw error;
   }
   return text ? JSON.parse(text) : null;
