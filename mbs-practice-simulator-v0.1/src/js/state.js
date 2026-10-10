@@ -1,0 +1,156 @@
+import { BOT_STRATEGIES, MAX_ROUNDS, ROUND1_REFERENCE, STORAGE_KEY } from './config.js';
+import { clamp, deepClone, rngFrom } from './utils.js';
+
+export function snapshot(company, round, decision, economy) {
+  return {
+    round,
+    decision: decision ? deepClone(decision) : deepClone(company.lastDecision),
+    economy: deepClone(economy),
+    price: company.price,
+    quality: company.quality,
+    image: company.image,
+    potentialDemand: company.potentialDemand,
+    sales: company.sales,
+    marketShare: company.marketShare,
+    revenue: company.revenue,
+    production: company.production,
+    capacity: company.capacity,
+    rawMaterial: company.rawMaterial,
+    finishedGoods: company.finishedGoods,
+    unitCost: company.unitCost,
+    netProfit: company.netProfit,
+    cash: company.cash,
+    overdraft: company.overdraft,
+    equity: company.equity,
+    currentRatio: company.currentRatio,
+    roe: company.roe,
+    profitMargin: company.profitMargin,
+    npv: company.npv,
+    balancedScore: company.balancedScore
+  };
+}
+
+export function baselineUser(team = 'MARKOWITZ') {
+  const company = {
+    id: 'user',
+    name: team.toUpperCase(),
+    strategy: 'Human',
+    isUser: true,
+    price: 6.40,
+    quality: 0.26,
+    image: 0.60,
+    potentialDemand: 438879,
+    sales: 438879,
+    marketShare: 0.0625,
+    revenue: 2808826,
+    production: 425641,
+    capacity: 415000,
+    rawMaterial: 1200000,
+    finishedGoods: 51000,
+    unitCost: 5.42,
+    netProfit: 306310,
+    cash: 1648636,
+    overdraft: 0,
+    equity: 10710552,
+    currentRatio: 2.15,
+    roe: 0.0286,
+    profitMargin: 0.1091,
+    npv: 10710552,
+    balancedScore: 72,
+    lastDecision: {
+      price: 6.40,
+      marketing: 150000,
+      rd: 0,
+      production: 425641,
+      materialPurchase: 900000,
+      equipment: 0,
+      maintenance: 250000,
+      dividend: 0
+    },
+    history: []
+  };
+
+  company.history.push(snapshot(company, 0, null, {
+    priceIndex: 100,
+    growth: 1,
+    seasonal: 1,
+    marketGrowth: 1,
+    event: null
+  }));
+
+  return company;
+}
+
+function botBaseline(name, strategy, index) {
+  const random = rngFrom(name + index);
+  const company = baselineUser(name);
+  company.id = `bot${index}`;
+  company.strategy = strategy;
+  company.isUser = false;
+
+  company.price = 5.8 + random() * 1.5;
+  company.quality = clamp(0.22 + random() * 0.22, 0.1, 0.9);
+  company.image = clamp(0.42 + random() * 0.28, 0.1, 0.9);
+  company.marketShare = 0.065 + random() * 0.055;
+  company.sales = 360000 + random() * 230000;
+  company.revenue = company.sales * company.price;
+  company.production = company.sales * (0.92 + random() * 0.16);
+  company.capacity = 390000 + random() * 210000;
+  company.rawMaterial = 900000 + random() * 900000;
+  company.finishedGoods = 25000 + random() * 80000;
+  company.unitCost = 4.9 + random() * 1.3;
+  company.netProfit = (company.price - company.unitCost) * company.sales * 0.71;
+  company.cash = 1400000 + random() * 1300000;
+  company.equity = 9500000 + random() * 2600000;
+  company.npv = company.equity;
+  company.balancedScore = 58 + random() * 27;
+  company.history = [snapshot(company, 0, null, {
+    priceIndex: 100,
+    growth: 1,
+    seasonal: 1,
+    marketGrowth: 1,
+    event: null
+  })];
+
+  return company;
+}
+
+export function makeInitialState(team = 'MARKOWITZ') {
+  return {
+    version: '0.1.0',
+    roomCode: '',
+    roomKey: '',
+    teamName: team.toUpperCase(),
+    currentRound: 0,
+    maxRounds: MAX_ROUNDS,
+    lastEvent: null,
+    economy: null,
+    surpriseMode: true,
+    companies: [
+      baselineUser(team),
+      ...BOT_STRATEGIES.map((item, i) => botBaseline(item[0], item[1], i + 1))
+    ],
+    draft: deepClone(ROUND1_REFERENCE),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+export function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (error) {
+    console.warn('Could not load local state:', error);
+  }
+  return makeInitialState();
+}
+
+export function saveLocal(state) {
+  state.updatedAt = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export function userCompany(state) {
+  return state.companies.find(company => company.isUser);
+}
