@@ -27,10 +27,11 @@ import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
 const root = document.querySelector('#app');
 let state = loadState();
 let activeTab = 'dashboard';
-const SIDEBAR_KEY = 'mbs_sidebar_collapsed_v10';
+const SIDEBAR_KEY = 'mbs_sidebar_collapsed_desktop_v101';
+const mobileSidebarQuery = window.matchMedia('(max-width: 900px)');
 const storedSidebar = localStorage.getItem(SIDEBAR_KEY);
-let sidebarCollapsed = storedSidebar === null
-  ? window.matchMedia('(max-width: 900px)').matches
+let sidebarCollapsed = mobileSidebarQuery.matches
+  ? true
   : storedSidebar === '1';
 let financialRound = null;
 let pollTimer = null;
@@ -249,9 +250,8 @@ function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
       activeTab = button.dataset.tab;
-      if (window.matchMedia('(max-width: 900px)').matches) {
+      if (mobileSidebarQuery.matches) {
         sidebarCollapsed = true;
-        localStorage.setItem(SIDEBAR_KEY, '1');
       }
       render();
     });
@@ -354,7 +354,9 @@ function bindEvents() {
     try {
       if (action === 'toggle-sidebar') {
         sidebarCollapsed = !sidebarCollapsed;
-        localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? '1' : '0');
+        if (!mobileSidebarQuery.matches) {
+          localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? '1' : '0');
+        }
         render(false);
         return;
 
@@ -558,6 +560,13 @@ function bindEvents() {
     }
   });
 }
+
+mobileSidebarQuery.addEventListener?.('change', event => {
+  sidebarCollapsed = event.matches
+    ? true
+    : localStorage.getItem(SIDEBAR_KEY) === '1';
+  render(false);
+});
 
 startPolling();
 render();
