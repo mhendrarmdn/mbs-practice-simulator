@@ -1896,3 +1896,40 @@ body{
   font-family:'IBM Plex Sans',sans-serif!important;
   font-weight:500!important;
 }
+
+
+/* v1.3.0 — equal-share competition baseline */
+.tb-baseline-parity{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:0 0 12px;
+  padding:10px 12px;
+  border:1px solid #c7d9e8;
+  border-left:4px solid #2d7db7;
+  border-radius:5px;
+  background:#f5faff;
+}
+.tb-baseline-parity strong{
+  flex:none;
+  color:#245b91;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.tb-baseline-parity span{
+  color:#536b80;
+  font-size:10px;
+  line-height:1.5;
+}
+.tb-baseline-parity.warning{
+  border-color:#e8d6aa;
+  border-left-color:#d19b22;
+  background:#fffaf0;
+}
+.tb-baseline-parity.warning strong{
+  color:#8a6412;
+}
+.tb-kpi>small.neutral{
+  color:#617487!important;
+}

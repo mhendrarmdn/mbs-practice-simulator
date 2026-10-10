@@ -193,10 +193,15 @@ function marketShareItems(state, round) {
 function marketShareContext(state, round) {
   const items=marketShareItems(state,round);
   const user=items.find(x=>x.isUser);
-  const rank=items.findIndex(x=>x.isUser)+1;
+  const userValue=user?.value||0;
+  const epsilon=0.0000001;
+  const higher=items.filter(item=>item.value>userValue+epsilon).length;
+  const tied=items.filter(item=>Math.abs(item.value-userValue)<=epsilon).length;
+  const rank=higher+1;
   const avg=1/Math.max(items.length,1);
-  const gap=(user?.value||0)-avg;
-  return { items, rank, avg, gap };
+  const gap=userValue-avg;
+  const rankLabel=tied>1?`T${rank}/${items.length}`:`#${rank}/${items.length}`;
+  return { items, rank, tied, rankLabel, avg, gap };
 }
 
 function currentSnapshot(state, round) {
@@ -230,6 +235,18 @@ function rankTone(rank,total) {
 
 function dashboardKpi(label,value,note='',tone='',noteTone='') {
   return `<div class="tb-kpi"><span>${esc(label)}</span><strong class="${tone}">${value}</strong><small class="${noteTone}">${esc(note)}</small></div>`;
+}
+
+function baselineCompatibilityNotice(state) {
+  if (state.baselineProfile === 'legacy-active-run-pre-v13') {
+    return `<div class="tb-baseline-parity warning"><strong>Legacy active save</strong><span>Save ini dimulai sebelum v1.3 dan masih memakai field lama. Reset/start new session untuk memakai baseline parity 16 perusahaan × 6.25% di R0.</span></div>`;
+  }
+  return '';
+}
+
+function equalShareBaselineNote(state, round) {
+  if (round !== 0 || state.companies.length !== 16) return '';
+  return `<div class="tb-baseline-parity"><strong>Equal-start baseline</strong><span>Round 0 dimulai dengan 16 perusahaan × 6.25% market share = 100%. Share mulai divergen setelah keputusan Round 1 dijalankan.</span></div>`;
 }
 
 function netProfitCompanion(company, rounds) {
@@ -287,10 +304,12 @@ export function parityDashboardView(state, requestedRound) {
       }],completed,v=>money(v),{pointLabels:true,tickStep:1000000,axisFormat:compactMoneyAxis,hideLegend:true})}${netProfitCompanion(company,completed)}`;
 
   return page('Management Dashboard','Compact operating and financial overview aligned to the recorded MBS layout.',state,round,`
+    ${baselineCompatibilityNotice(state)}
+    ${equalShareBaselineNote(state,round)}
     <div class="tb-kpi-strip">
       ${dashboardKpi('Practice NPV',money(user.npv),`Rank #${npvRank}/${state.companies.length}`,'',rankTone(npvRank,state.companies.length))}
       ${dashboardKpi('Net Profit',money(user.netProfit),`Round ${round}`,user.netProfit>=0?'good':'bad')}
-      ${dashboardKpi('Market Share',pct(user.marketShare),`Rank #${shareCtx.rank}/${state.companies.length}`,'',rankTone(shareCtx.rank,state.companies.length))}
+      ${dashboardKpi('Market Share',pct(user.marketShare),shareCtx.tied>1?`Equal baseline · ${shareCtx.rankLabel}`:`Rank ${shareCtx.rankLabel}`,'',shareCtx.tied>1?'neutral':rankTone(shareCtx.rank,state.companies.length))}
       ${dashboardKpi('Cash',money(user.cash),user.overdraft>0?`Overdraft ${money(user.overdraft)}`:'No overdraft')}
       ${dashboardKpi('Unit Cost',money(user.unitCost),`Price ${money(user.price)}`,user.unitCost>user.price?'bad':'')}
     </div>
@@ -298,7 +317,7 @@ export function parityDashboardView(state, requestedRound) {
     <div class="tb-dashboard-grid">
       ${panel('Business Summary',dataTable(['Measure','Value','Δ vs prior'],summaryRows),'tb-span-4')}
       ${panel('Revenue Trend',revenueBlock,'tb-span-8')}
-      ${panel('Market Share',`${pieChart(shareCtx.items)}<div class="tb-share-meta"><span>Share rank <b>#${shareCtx.rank}/${state.companies.length}</b></span><span>Market average <b>${pct(shareCtx.avg)}</b></span><span>vs average <b class="${shareCtx.gap>=0?'good':'bad'}">${shareCtx.gap>=0?'+':''}${(shareCtx.gap*100).toFixed(2)}pp</b></span></div>`,'tb-span-5')}
+      ${panel('Market Share',`${pieChart(shareCtx.items)}<div class="tb-share-meta"><span>Share position <b>${shareCtx.rankLabel}</b></span><span>Market average <b>${pct(shareCtx.avg)}</b></span><span>vs average <b class="${shareCtx.gap>=0?'good':'bad'}">${shareCtx.gap>=0?'+':''}${(shareCtx.gap*100).toFixed(2)}pp</b></span></div>`,'tb-span-5')}
       ${panel('Operating Position',dataTable(['Measure','Value'],[
         [{text:'Potential demand'},{html:num(user.potentialDemand)}],
         [{text:'Sales'},{html:num(user.sales)}],
@@ -436,7 +455,7 @@ export function marketShareView(state, requestedRound) {
       {html:money(s.revenue)}
     ]);
   return page('Market Share','Overall market-share view derived from company results in the selected round.',state,round,
-    `<div class="tb-two-col">${panel('Overall Market Share',`${pieChart(ctx.items)}<div class="tb-share-meta"><span>MARKOWITZ rank <b>#${ctx.rank}/${state.companies.length}</b></span><span>Market average <b>${pct(ctx.avg)}</b></span><span>vs average <b class="${ctx.gap>=0?'good':'bad'}">${ctx.gap>=0?'+':''}${(ctx.gap*100).toFixed(2)}pp</b></span></div>`)}${panel('Share Table',dataTable(['Company','Share','Sales','Revenue'],rows))}</div>`
+    `${baselineCompatibilityNotice(state)}${equalShareBaselineNote(state,round)}<div class="tb-two-col">${panel('Overall Market Share',`${pieChart(ctx.items)}<div class="tb-share-meta"><span>MARKOWITZ position <b>${ctx.rankLabel}</b></span><span>Market average <b>${pct(ctx.avg)}</b></span><span>vs average <b class="${Math.abs(ctx.gap)<0.0000001?'neutral':ctx.gap>=0?'good':'bad'}">${ctx.gap>=0?'+':''}${(ctx.gap*100).toFixed(2)}pp</b></span></div>`)}${panel('Share Table',dataTable(['Company','Share','Sales','Revenue'],rows))}</div>`
   );
 }
 

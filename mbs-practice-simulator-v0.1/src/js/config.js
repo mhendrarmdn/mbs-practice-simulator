@@ -10,6 +10,9 @@ export const WORKBOOK_RESULT_ROUNDS = 5;
 export const WORKBOOK_PLAN_ROUND = 6;
 export const DEFAULT_TIMER_SECONDS = 15 * 60;
 export const BASE_MARKET_SIZE = 7_022_064;
+export const COMPETITION_FIELD_SIZE = 16;
+export const BASELINE_MARKET_SHARE = 1 / COMPETITION_FIELD_SIZE;
+export const BASELINE_SALES_PER_COMPANY = BASE_MARKET_SIZE / COMPETITION_FIELD_SIZE;
 export const MATERIAL_PER_UNIT = 1.43;
 export const MATERIAL_PRICE = 1.15;
 export const DISCOUNT_RATE = 0.08;
@@ -30,7 +33,13 @@ export const BOT_STRATEGIES = [
   ['FORTRESS', 'Conservative'],
   ['CAPEX PRO', 'Capacity Expansion'],
   ['CASH KING', 'Cash Maximizer'],
-  ['BALANCED AI', 'Balanced']
+  ['BALANCED AI', 'Balanced'],
+  ['PRICE EDGE', 'Value Pricing'],
+  ['BRAND BUILDER', 'Brand Builder'],
+  ['SUPPLY CORE', 'Supply Resilience'],
+  ['OPS MASTER', 'Operations Efficiency'],
+  ['MARKET HUNTER', 'Market Capture'],
+  ['VALUE MIX', 'Balanced Value']
 ];
 
 export const ROUND1_REFERENCE = {
@@ -69,7 +78,8 @@ export const TRAINING_PROXY_NOTES = [
   'Practice NPV is a transparent proxy, not the proprietary TopBoss NPV equation.',
   'Balanced Score is a practice proxy built from profit, liquidity, market share, and returns.',
   'Cost and finance relationships are calibrated heuristics and should be refined as more real decision → result pairs become available.',
-  'AI competitors are strategy archetypes that adapt to prior-round performance; they are not replicas of actual teams.'
+  'AI competitors are strategy archetypes that adapt to prior-round performance; they are not replicas of actual teams.',
+  'v1.3 uses a 16-company Round 0 equal-share baseline (6.25% each). This is a parity assumption inferred from the observed 6.25% Round 0 share and the 7,022,064 base market size; competitor names and strategies remain synthetic.'
 ];
 
 
