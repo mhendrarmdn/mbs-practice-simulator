@@ -1,0 +1,21 @@
+.nav{padding-bottom:30px;scrollbar-width:none;-ms-overflow-style:none}
+.nav::-webkit-scrollbar{width:0;height:0;display:none}
+.nav-group{gap:2px}
+.nav-group-label{padding-top:7px;padding-bottom:3px}
+.nav button{min-height:42px;padding-top:10px;padding-bottom:10px}
+.sidebar-bottom{padding-top:14px;padding-bottom:18px}
+.sidebar .nav-group:last-child{padding-bottom:10px}
+@media(max-width:900px){
+.topbar{min-height:68px;padding:9px 12px}
+.top-left-with-menu{min-height:48px}
+.content{padding-top:22px;padding-bottom:34px}
+.page-head{margin-bottom:22px}
+}
+@media(max-width:620px){
+.topbar{min-height:64px}
+.top-left-with-menu>div strong{font-size:14px}
+.top-left-with-menu>div small{margin-top:4px;font-size:8px}
+.page-head{margin-bottom:18px}
+.metric-grid{margin-bottom:14px}
+.debrief-card{min-height:132px}
+}

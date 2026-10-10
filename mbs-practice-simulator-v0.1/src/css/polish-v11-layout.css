@@ -1,0 +1,16 @@
+.topbar{min-height:82px;height:auto;padding:12px 18px;align-items:center}
+.top-left-with-menu{align-items:center;min-height:56px}
+.top-left-with-menu>div{display:flex;flex-direction:column;justify-content:center;min-height:44px;line-height:1}
+.top-left-with-menu>div strong{display:block;font-size:15px;line-height:1.15}
+.top-left-with-menu>div small{display:block;margin-top:5px;line-height:1;letter-spacing:.10em}
+.hamburger{align-self:center;margin:0}
+.top-actions{align-items:center;min-height:44px}
+.top-control,.badge{min-height:40px;display:inline-flex;align-items:center}
+.content{padding-top:30px;padding-bottom:44px}
+.page-head{margin-bottom:26px;align-items:flex-end}
+.page-head h1{margin-bottom:8px}
+.page-head .subtitle{line-height:1.5}
+.metric-grid{margin-bottom:18px}
+.dashboard-grid{gap:16px}
+.debrief-card{width:100%;min-height:150px;margin-top:16px;display:flex;flex-direction:column}
+.debrief-card .debrief-grid{flex:1}
