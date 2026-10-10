@@ -1,5 +1,8 @@
 import {
+  BASELINE_MARKET_SHARE,
+  BASELINE_SALES_PER_COMPANY,
   BOT_STRATEGIES,
+  COMPETITION_FIELD_SIZE,
   DEFAULT_TIMER_SECONDS,
   LEGACY_STORAGE_KEYS,
   MAX_ROUNDS,
@@ -56,9 +59,9 @@ export function baselineUser(team = 'MARKOWITZ') {
     price: 6.40,
     quality: 0.26,
     image: 0.60,
-    potentialDemand: 438879,
-    sales: 438879,
-    marketShare: 0.0625,
+    potentialDemand: BASELINE_SALES_PER_COMPANY,
+    sales: BASELINE_SALES_PER_COMPANY,
+    marketShare: BASELINE_MARKET_SHARE,
     revenue: 2808826,
     production: 425641,
     capacity: 415000,
@@ -116,8 +119,9 @@ function botBaseline(name, strategy, index) {
   company.price = 5.8 + random() * 1.5;
   company.quality = clamp(0.22 + random() * 0.22, 0.1, 0.9);
   company.image = clamp(0.42 + random() * 0.28, 0.1, 0.9);
-  company.marketShare = 0.065 + random() * 0.055;
-  company.sales = 360000 + random() * 230000;
+  company.marketShare = BASELINE_MARKET_SHARE;
+  company.potentialDemand = BASELINE_SALES_PER_COMPANY;
+  company.sales = BASELINE_SALES_PER_COMPANY;
   company.revenue = company.sales * company.price;
   company.production = company.sales * (0.92 + random() * 0.16);
   company.capacity = 390000 + random() * 210000;
@@ -150,9 +154,17 @@ function botBaseline(name, strategy, index) {
   return company;
 }
 
+function baselineField(team = 'MARKOWITZ') {
+  return [
+    baselineUser(team),
+    ...BOT_STRATEGIES.slice(0, COMPETITION_FIELD_SIZE - 1).map((item, i) => botBaseline(item[0], item[1], i + 1))
+  ];
+}
+
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '1.0.0',
+    version: '1.3.0',
+    baselineProfile: 'equal-share-16-r0-v13',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -175,10 +187,7 @@ export function makeInitialState(team = 'MARKOWITZ') {
     surpriseMode: true,
     scenarioPreset: 'auto',
     sensitivity: { key: 'price', deltaPct: 10 },
-    companies: [
-      baselineUser(team),
-      ...BOT_STRATEGIES.map((item, i) => botBaseline(item[0], item[1], i + 1))
-    ],
+    companies: baselineField(team),
     draft: deepClone(ROUND1_REFERENCE),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -207,7 +216,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '1.0.0';
+  state.version = '1.3.0';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -227,6 +236,17 @@ export function migrateState(input) {
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
   state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];
   state.companies = state.companies.map(migrateCompany);
+
+  const hasV13Baseline = state.baselineProfile === 'equal-share-16-r0-v13'
+    && state.companies.length === COMPETITION_FIELD_SIZE;
+
+  if (state.currentRound === 0 && !hasV13Baseline) {
+    state.companies = baselineField(state.teamName || 'MARKOWITZ');
+    state.baselineProfile = 'equal-share-16-r0-v13';
+  } else if (!hasV13Baseline) {
+    state.baselineProfile = 'legacy-active-run-pre-v13';
+  }
+
   return state;
 }
 

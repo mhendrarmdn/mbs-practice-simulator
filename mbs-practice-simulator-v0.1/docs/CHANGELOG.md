@@ -1,53 +1,41 @@
 # Changelog
 
-## v1.2.6 — Chart Readability & Financial Insight
+## v1.3.0 — Equal-Share Competition Baseline
 
-### Navigation / round state
-- Switching to a different parity page now resets its round selector to the latest completed result instead of carrying an old R0 selection across pages.
+### Round 0 parity
+- Expands the practice field from 10 companies to 16 companies.
+- Round 0 now starts with exactly 6.25% market share for every company.
+- Baseline sales/potential demand are aligned to 438,879 units per company.
+- 16 × 438,879 = 7,022,064, matching the simulator's existing base market size.
+- MARKOWITZ retains the observed Round 0 anchors: 6.25% share, 438,879 sales, $2,808,826 revenue, $6.40 price, and the existing practice financial baseline.
 
-### Chart readability
-- Adds more left plot padding so data labels do not collide with Y-axis labels.
-- Revenue and Net Profit axes use compact labels such as $3M, $2M, $500k, and -$250k while point labels keep exact values.
-- Sales Trend uses compact volume ticks such as 1M, 750k, and 250k.
-- First and last point labels receive horizontal offsets so they do not sit directly on the chart boundary.
-- Single-series no-legend charts use more vertical plot area.
+### Competitor field
+- Adds six additional synthetic strategy archetypes so the practice market contains 15 AI competitors plus the user company.
+- Competitor names/strategies remain training constructs; they are not presented as official competition teams.
+- Competitor product/financial characteristics can still differ at R0, but market share and baseline sales begin equal.
 
-### Ranking semantics
-- Dashboard rank colors now use three tiers:
-  - top 30%: green,
-  - middle: amber,
-  - bottom 20%: red.
-- For 10 companies this means ranks 1–3 green, 4–7 amber, and 8–10 red.
+### Market-share trust
+- Equal-share ties are now shown as tied positions (for example T1/16) instead of falsely implying a unique #1 rank.
+- R0 Market Share and Dashboard include an Equal-start baseline notice.
+- From R1 onward, market shares diverge through the practice demand/attractiveness engine.
 
-### Product Image
-- Renames the point-matching column from # to No. so it is not confused with competitive rank.
-- Company names are left aligned.
-- MARKOWITZ uses a row highlight instead of the floating bullet treatment.
-- Lower quadrant labels are moved inward to avoid overlap with competitor points.
-- Market-average labels are slightly smaller and less dominant.
-- Native point tooltips remain available for every company.
+### Save migration
+- Old saves that are still at R0 automatically rebuild onto the new 16-company baseline.
+- Active pre-v1.3 saves at R1+ are preserved to avoid corrupting an in-progress simulation.
+- Preserved legacy active runs show a notice explaining that reset/start-new-session is required to adopt the new baseline.
 
-### Revenue Status
-- Company names are left aligned while numeric columns remain right aligned.
-- MARKOWITZ row receives a subtle highlight.
-- Revenue ranking remains sorted from highest to lowest.
-
-### Automatic financial debrief
-- Dashboard and Revenue Status compare the selected round with the previous completed round.
-- The debrief reports revenue change, net-profit swing, and implied total-cost change (Revenue minus Net Profit).
-- The wording intentionally describes implied total cost and does not claim unsupported fixed-cost decomposition.
-
-### Layout / sidebar
-- Dashboard panels in the same row stretch to equal height.
-- Adds a subtle lower-edge cue to the scrollable sidebar navigation.
+### Evidence / scope note
+- The 16-company equal-share baseline is a strong parity inference from the observed 6.25% Round 0 share together with the 7,022,064 base market size.
+- It is not claimed as a verbatim rule from the competition booklet.
+- No proprietary TopBoss formula is claimed or reproduced.
 
 ### Database
 - No Supabase schema migration required.
 
+## v1.2.6 — Chart Readability & Financial Insight
+
+Chart spacing, compact axes, table alignment, ranking semantics, and automatic financial debrief.
+
 ## v1.2.5 — Chart Trust & Automatic Debrief
 
 Negative-money formatting, rounded chart axes, break-even semantics, Sales Trend debrief, enriched Product Image, revenue rank, and sidebar completion.
-
-## v1.2.4 — Chart, Form & Sidebar Reliability
-
-Sidebar scroll preservation, Product Image scaling, decision input formatting, and trend-chart cleanup.
