@@ -1,53 +1,100 @@
-# MBS Practice Simulator v0.5
+# MBS Practice Simulator v0.7
 
 Independent web-based training simulator for Macro Business Simulation / TopBoss-style competition practice.
 
-> This is a **training twin**, not an official TopBoss clone. v0.5 increases operational fidelity using mechanics explicitly stated in the Student Workbook while keeping proprietary equations labeled as training approximations.
+> This is a **training twin**, not an official TopBoss clone. The simulator separates workbook-explicit mechanics, observed calibration anchors, and transparent practice approximations.
 
-## v0.5 focus — Operations Fidelity + Decision Matrices
+## v0.7 focus — Workbook Training Mode + Round 6 Planning Lab
 
-### Workbook-aligned timing mechanics
-- procurement ordered in the current round arrives at the **end of the round / beginning of the next round**
-- current production therefore depends on **beginning raw-material inventory**, not same-round procurement
-- production may use overtime up to **50% above normal capacity**
-- normal production capacity ages by **2.5% per round**
-- equipment investment adds future capacity at the workbook-stated **$20 per unit of capacity**
-- maintenance affects **next-round** efficiency, not current-round production
-- conversion factor is surfaced as an operations KPI with **~0.7** as the workbook reference
-- exact maintenance→conversion response remains a transparent training proxy because the workbook does not disclose the proprietary response equation
+The Student Workbook uses historical/performance data from **Round 0 through Round 5** as the controlling evidence, then asks the learner to make **Round 6 management decisions without simulating Round 6 results**.
 
-### Business Intelligence Decision Matrices
-A new **Decision Matrices** page mirrors the workbook's PDCA control structure:
-- Overall Business Matrix
-- Price Matrix
-- Marketing & R&D Matrix
-- Procurement Matrix
-- Production Matrix
-- Maintenance & Equipment Matrix
-- Dividend Matrix
+v0.7 now mirrors that structure.
 
-Each table links round decisions to the outcomes/KPIs the workbook says should be reviewed.
+### New Workbook Mode
+
+Select:
+
+`Workbook R0–R5 + R6 Plan`
+
+The workflow becomes:
+
+`R0 baseline → R1 → R2 → R3 → R4 → R5 results → R6 business plan only`
+
+Round 6 is deliberately **not simulated**.
+
+### Workbook Lab
+
+A dedicated Workbook Lab shows:
+
+- R0–R5 completion progress
+- controlling observations from the accumulated history
+- Round 6 planning rationale
+- the eight Round 6 management decisions
+- explicit **NO R6 RESULT** status
+
+The simulator will not fabricate Round 6 revenue, sales, market share, earnings, cash, equity, or NPV.
+
+### R6 Business Plan
+
+After completing Round 5, Business Decisions becomes the Round 6 planning screen.
+
+The team can set:
+
+- Price
+- Marketing
+- R&D
+- Production Request
+- Raw Material Procurement
+- Maintenance
+- Equipment Investment
+- Dividend
+
+The Captain then uses **Finalize R6 Business Plan** instead of Submit Round.
+
+The finalized plan can be reopened and edited without ever generating Round 6 results.
+
+### Decision Matrices
+
+In Workbook Mode, the existing Business Intelligence Decision Matrices now add a highlighted:
+
+`R6 PLAN`
+
+row.
+
+Decision values are shown, while outcome/result cells remain blank where a Round 6 result would otherwise be invented.
+
+### Export
+
+Workbook Lab can export a Markdown Round 6 business plan containing:
+
+- R0–R5 review
+- the eight R6 decisions
+- planning rationale
+- explicit planning-only disclaimer
+
+## Competition Mode remains separate
+
+Competition Mode continues to use the competition horizon already configured for the MBS E-Case simulator.
+
+Workbook Mode does **not** globally change Competition Mode into a six-round competition.
 
 ## Existing features retained
-- Floot-style light/dark cockpit
+
+- Floot-style cockpit UI
+- v0.3 Captain / Member rooms
+- v0.4 Decision Intelligence and R1 Calibration Lab
+- v0.5 workbook-aligned operations mechanics and Decision Matrices
+- v0.6 Competition Command Center and scenario stress tests
+- adaptive AI
 - Training / Competition / Sandbox
-- v0.3 Captain/Member room collaboration
-- shared Competition timer
-- adaptive AI competitors
-- Sensitivity Lab
-- v0.4 Decision Readiness
-- Round Debrief
-- Scenario Presets
-- R1 Calibration Lab
 - save import/export and migration
-- Model Transparency
 
 ## Supabase
 
-**No new Supabase SQL migration is required for v0.5.** The v0.3 schema remains sufficient.
+**No new Supabase SQL migration is required for v0.7.**
+
+The existing v0.3 room schema stores simulator state as JSON and remains sufficient.
 
 ## Model boundary
 
-Where the workbook supplies an explicit mechanic (timing, 50% overtime ceiling, 2.5% aging, $20 capacity cost, ~0.7 conversion reference), v0.5 implements it directly.
-
-Where the workbook does **not** disclose an exact equation, the simulator continues to use clearly labeled practice approximations.
+Round 6 planning is intentionally non-simulated in Workbook Mode. This prevents the practice twin from presenting invented Round 6 outcomes as if they were workbook-supported results.

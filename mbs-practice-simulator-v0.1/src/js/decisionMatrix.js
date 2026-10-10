@@ -1,3 +1,4 @@
+import { WORKBOOK_PLAN_ROUND } from './config.js';
 import { userCompany } from './state.js';
 
 export function decisionMatrices(state) {
@@ -6,6 +7,8 @@ export function decisionMatrices(state) {
 
   const row = item => ({
     round: item.round,
+    label: `R${item.round}`,
+    isPlan: false,
     decision: item.decision || {},
     revenue: item.revenue,
     netProfit: item.netProfit,
@@ -36,76 +39,111 @@ export function decisionMatrices(state) {
   });
 
   const rows = history.map(row);
+  const planDecision = state.workbookPlan?.decision || (state.mode === 'workbook' && state.currentRound >= 5 ? state.draft : null);
+  const planRow = planDecision ? {
+    round: WORKBOOK_PLAN_ROUND,
+    label: 'R6 PLAN',
+    isPlan: true,
+    decision: planDecision,
+    revenue: null,
+    netProfit: null,
+    cashExpenditure:
+      Number(planDecision.marketing || 0) +
+      Number(planDecision.rd || 0) +
+      Number(planDecision.maintenance || 0) +
+      Number(planDecision.equipment || 0) +
+      Number(planDecision.dividend || 0) +
+      Number(planDecision.materialPurchase || 0),
+    cash: null,
+    equity: null,
+    sales: null,
+    share: null,
+    unitCost: null,
+    image: null,
+    quality: null,
+    capacity: null,
+    beginCapacity: user.capacity,
+    maxProductionCapacity: user.capacity * 1.5,
+    beginRawMaterial: user.rawMaterial,
+    rawMaterial: null,
+    procurementDelivered: null,
+    production: null,
+    finishedGoods: null,
+    conversionFactor: user.conversionFactor,
+    nextConversionFactor: null
+  } : null;
+
+  const withPlan = source => planRow ? [...source, planRow] : source;
 
   return [
     {
       id: 'overall',
       title: 'Overall Business Matrix',
-      subtitle: 'Eight decisions → revenue, earnings, cash expenditure, cash balance, owners’ equity.',
+      subtitle: 'Eight decisions → revenue, earnings, cash expenditure, cash balance, owners’ equity. R6 is plan-only.',
       columns: [
-        ['round','Round'],['revenue','Revenue'],['netProfit','Earnings'],
+        ['label','Round'],['revenue','Revenue'],['netProfit','Earnings'],
         ['cashExpenditure','Cash Expenditure'],['cash','Cash Balance'],['equity','Owners’ Equity']
       ],
-      rows
+      rows: withPlan(rows)
     },
     {
       id: 'price',
       title: 'Price Matrix',
-      subtitle: 'Price → revenue, sales volume, market share, earnings; unit cost as reference.',
+      subtitle: 'Price → revenue, sales volume, market share, earnings; unit cost as reference. R6 outcomes intentionally blank.',
       columns: [
-        ['round','Round'],['price','Price'],['revenue','Revenue'],['sales','Sales'],
+        ['label','Round'],['price','Price'],['revenue','Revenue'],['sales','Sales'],
         ['share','Market Share'],['netProfit','Earnings'],['unitCost','Unit Cost']
       ],
-      rows: rows.map(r=>({...r,price:r.decision.price}))
+      rows: withPlan(rows.map(r=>({...r,price:r.decision.price}))).map(r=>({...r,price:r.decision?.price}))
     },
     {
       id: 'marketing-rd',
       title: 'Marketing & R&D Matrix',
       subtitle: 'Marketing → image; R&D → quality; sales volume is the KPI with next production capacity as reference.',
       columns: [
-        ['round','Round'],['marketing','Marketing'],['image','Image'],['rd','R&D'],
+        ['label','Round'],['marketing','Marketing'],['image','Image'],['rd','R&D'],
         ['quality','Quality'],['sales','Sales'],['capacity','Next Capacity']
       ],
-      rows: rows.map(r=>({...r,marketing:r.decision.marketing,rd:r.decision.rd}))
+      rows: withPlan(rows.map(r=>({...r,marketing:r.decision.marketing,rd:r.decision.rd}))).map(r=>({...r,marketing:r.decision?.marketing,rd:r.decision?.rd}))
     },
     {
       id: 'procurement',
       title: 'Procurement Matrix',
-      subtitle: 'Procurement arrives at end-of-round / beginning of next round. Ending RM inventory is the key outcome/KPI.',
+      subtitle: 'Procurement arrives at end-of-round / beginning of next round. R6 records the decision only.',
       columns: [
-        ['round','Round'],['materialPurchase','Procurement'],['beginRawMaterial','Beginning RM'],
+        ['label','Round'],['materialPurchase','Procurement'],['beginRawMaterial','Beginning RM'],
         ['rawMaterial','Ending RM / Next Beginning'],['capacity','Next Capacity']
       ],
-      rows: rows.map(r=>({...r,materialPurchase:r.decision.materialPurchase}))
+      rows: withPlan(rows.map(r=>({...r,materialPurchase:r.decision.materialPurchase}))).map(r=>({...r,materialPurchase:r.decision?.materialPurchase}))
     },
     {
       id: 'production',
       title: 'Production Matrix',
       subtitle: 'Production request → actual production; finished goods inventory is the KPI, with next capacity as reference.',
       columns: [
-        ['round','Round'],['productionRequest','Production Request'],['production','Actual Production'],
+        ['label','Round'],['productionRequest','Production Request'],['production','Actual Production'],
         ['finishedGoods','FG Inventory'],['capacity','Next Capacity']
       ],
-      rows: rows.map(r=>({...r,productionRequest:r.decision.production}))
+      rows: withPlan(rows.map(r=>({...r,productionRequest:r.decision.production}))).map(r=>({...r,productionRequest:r.decision?.production}))
     },
     {
       id: 'maintenance-equipment',
       title: 'Maintenance & Equipment Matrix',
-      subtitle: 'Maintenance → conversion factor; equipment → next production capacity.',
+      subtitle: 'Maintenance → conversion factor; equipment → next production capacity. R6 is planning-only.',
       columns: [
-        ['round','Round'],['maintenance','Maintenance'],['nextConversionFactor','Conversion Factor'],
+        ['label','Round'],['maintenance','Maintenance'],['nextConversionFactor','Conversion Factor'],
         ['equipment','Equipment'],['capacity','Next Capacity']
       ],
-      rows: rows.map(r=>({...r,maintenance:r.decision.maintenance,equipment:r.decision.equipment}))
+      rows: withPlan(rows.map(r=>({...r,maintenance:r.decision.maintenance,equipment:r.decision.equipment}))).map(r=>({...r,maintenance:r.decision?.maintenance,equipment:r.decision?.equipment}))
     },
     {
       id: 'dividend',
       title: 'Dividend Matrix',
-      subtitle: 'Dividend → end-period cash balance; owners’ equity is a reference for liquidity/value trade-off.',
+      subtitle: 'Dividend → end-period cash balance; owners’ equity is a reference. R6 outcomes remain blank.',
       columns: [
-        ['round','Round'],['dividend','Dividend'],['cash','End Cash Balance'],['equity','Owners’ Equity']
+        ['label','Round'],['dividend','Dividend'],['cash','End Cash Balance'],['equity','Owners’ Equity']
       ],
-      rows: rows.map(r=>({...r,dividend:r.decision.dividend}))
+      rows: withPlan(rows.map(r=>({...r,dividend:r.decision.dividend}))).map(r=>({...r,dividend:r.decision?.dividend}))
     }
   ];
 }

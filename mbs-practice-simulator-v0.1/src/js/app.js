@@ -1,5 +1,5 @@
 import '../css/app.css';
-import { ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS } from './config.js';
+import { MAX_ROUNDS, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, WORKBOOK_RESULT_ROUNDS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';
 import {
@@ -20,6 +20,7 @@ import { deepClone } from './utils.js';
 import { exportGame, importGame } from './persistence.js';
 import { getThemePreference, initTheme, setThemePreference } from './theme.js';
 import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
+import { buildRound6Review, buildWorkbookPlanMarkdown } from './workbookLab.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -210,6 +211,19 @@ function exportCompetitionBrief() {
   URL.revokeObjectURL(url);
 }
 
+function exportWorkbookPlan() {
+  const markdown = buildWorkbookPlanMarkdown(state);
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `mbs-workbook-r6-plan-${String(state.teamName || 'team').toLowerCase()}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
@@ -229,6 +243,7 @@ function bindEvents() {
       return;
     }
     state.mode = event.target.value;
+    state.maxRounds = state.mode === 'workbook' ? WORKBOOK_RESULT_ROUNDS : MAX_ROUNDS;
     if (state.mode === 'competition') state.scenarioPreset = 'auto';
     state.decisionLocked = false;
     state.lockReason = '';
@@ -319,7 +334,35 @@ function bindEvents() {
         persistLocal();
 
         const committed = state.roomCode ? await commitCanonicalState() : true;
-        if (committed) activeTab = 'dashboard';
+        if (committed) activeTab = state.mode === 'workbook' && state.currentRound >= WORKBOOK_RESULT_ROUNDS ? 'workbook' : 'dashboard';
+
+      } else if (action === 'finalize-workbook-plan') {
+        if (!captainOnly('Finalize Round 6 plan')) return;
+        if (state.mode !== 'workbook' || state.currentRound < WORKBOOK_RESULT_ROUNDS) return;
+        const review = buildRound6Review(state);
+        state.workbookPlan = {
+          decision: deepClone(state.draft),
+          observations: review.observations,
+          rationale: review.rationale,
+          finalizedAt: new Date().toISOString()
+        };
+        state.decisionLocked = true;
+        state.lockReason = 'Workbook Round 6 plan finalized — planning only, no simulation';
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        activeTab = 'workbook';
+
+      } else if (action === 'reopen-workbook-plan') {
+        if (!captainOnly('Reopen Round 6 plan')) return;
+        state.workbookPlan = null;
+        state.decisionLocked = false;
+        state.lockReason = '';
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        activeTab = 'decisions';
+
+      } else if (action === 'export-workbook-plan') {
+        exportWorkbookPlan();
 
       } else if (action === 'toggle-surprise') {
         await updateCaptainSetting(() => { state.surpriseMode = !state.surpriseMode; });
@@ -338,7 +381,10 @@ function bindEvents() {
         if (confirm('Reset game kembali ke Round 0?')) {
           const { roomCode, roomKey, roomMembers, revision } = state;
           const teamName = state.teamName;
+          const selectedMode = state.mode;
           state = makeInitialState(teamName);
+          state.mode = selectedMode;
+          state.maxRounds = selectedMode === 'workbook' ? WORKBOOK_RESULT_ROUNDS : MAX_ROUNDS;
           if (roomCode) {
             state.roomCode = roomCode;
             state.roomKey = roomKey;

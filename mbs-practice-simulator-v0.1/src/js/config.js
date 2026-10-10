@@ -1,11 +1,13 @@
-export const STORAGE_KEY = 'mbs_practice_v06';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v07';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v06', 'mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
 export const THEME_KEY = 'mbs_theme_v02';
 
 export const MAX_ROUNDS = 4;
+export const WORKBOOK_RESULT_ROUNDS = 5;
+export const WORKBOOK_PLAN_ROUND = 6;
 export const DEFAULT_TIMER_SECONDS = 15 * 60;
 export const BASE_MARKET_SIZE = 7_022_064;
 export const MATERIAL_PER_UNIT = 1.43;
