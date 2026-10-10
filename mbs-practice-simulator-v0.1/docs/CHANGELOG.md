@@ -1,38 +1,37 @@
 # Changelog
 
-## v1.2.2 — Parity Trust & UI Polish
+## v1.2.3 — Round Sync & Dashboard Readability
 
-### Trust / consistency
-- Fixes the Market Share mismatch between Business Summary and the pie chart.
-- The user team's observed share is preserved exactly; competitor shares are proportionally fitted into the remaining market for the pie presentation.
-- Adds share rank, market average, and gap versus average.
-- Business Summary now includes delta versus the prior completed round.
+### Round synchronization
+- Fixes the dashboard defaulting to R0 after a newer round result already exists.
+- Parity pages now default to the latest completed result unless the user explicitly selects an older round.
+- This also activates the Δ vs prior column automatically after R1 and later results.
 
-### Round model
-- Round tabs now show the full result path, including disabled future rounds.
-- Competition / standard modes show their configured result horizon.
-- Workbook mode shows R0–R5 plus a visible R6 Plan indicator; R6 remains planning-only, not a simulated result.
-- Topbar round label remains mode-aware.
+### Revenue Trend
+- Adds point-value labels to each completed Revenue round.
+- Adds a compact Net Profit companion strip under the Revenue chart.
+- Keeps the R0-only placeholder behavior until a second completed round exists.
 
-### Dashboard
-- Adds a compact KPI strip for Practice NPV, Net Profit, Market Share, Cash, and Unit Cost.
-- Single-round Revenue Trend is replaced by a clear R0 value and “Trend muncul setelah Round 1”.
-- Trend chart left padding and axis readability are improved for two or more completed rounds.
-- Net profit and round deltas use clearer positive/negative states.
+### Header
+- Rebuilds the left side of the topbar as a true flex row.
+- Raises the desktop header to 70px and vertically centers the hamburger and team name.
+- Moves the current round into a high-contrast pill instead of a low-contrast line under the team name.
 
-### Navigation / typography
-- Sidebar uses one consistent boxed-letter icon system instead of mixed symbols and letters.
-- Header controls use the same sans-serif family as the rest of the interface.
-- Redundant breadcrumb is removed from parity pages.
-- Primary Next Decision action returns to a high-contrast yellow treatment.
+### Dashboard readability
+- KPI sub-labels are larger and darker.
+- Rank notes use semantic green / amber / red coloring.
+- Practice NPV is emphasized in Business Summary.
+- Chart axis labels, legends, and point labels use stronger contrast and larger text.
 
-### Market Share visualization
-- MARKOWITZ receives the strongest visual emphasis.
-- Competitors use quieter neutral colors.
-- Legend values match the displayed market-share definition.
+### Sidebar density
+- Slightly reduces navigation spacing so more Analysis / Performance items fit before scrolling.
 
 ### Database
 - No Supabase schema migration required.
+
+## v1.2.2 — Parity Trust & UI Polish
+
+Market-share consistency, full round tabs, KPI strip, delta column, icon standardization, and chart typography improvements.
 
 ## v1.2.1 — UI Stability Hotfix
 
@@ -41,7 +40,3 @@ Production CSS ordering and shell stability fixes.
 ## v1.2.0 — TopBoss Video Parity Pass
 
 Recording-aligned information architecture and analytical pages based on the supplied contact sheets.
-
-## v1.1.0 — UI Polish + Precision Pass
-
-Header alignment, numeric precision, dashboard spacing, and sidebar polish.

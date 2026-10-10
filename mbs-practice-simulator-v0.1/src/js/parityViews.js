@@ -24,6 +24,7 @@ function availableRounds(state) {
 
 function selectedRound(state, requested) {
   const rounds = availableRounds(state);
+  if (requested === null || requested === undefined || requested === '') return Math.max(...rounds);
   const value = Number(requested);
   return rounds.includes(value) ? value : Math.max(...rounds);
 }
@@ -64,7 +65,7 @@ function dataTable(headers, rows, classes='') {
   return `<div class="tb-table-wrap"><table class="tb-table ${classes}"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td class="${cell?.className||''}">${cell?.html ?? esc(cell?.text ?? cell ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
-function lineChart(series, rounds, valueFormat = value => num(value)) {
+function lineChart(series, rounds, valueFormat = value => num(value), options = {}) {
   const width=720, height=230, padTop=24, padBottom=28, padLeft=82, padRight=24;
   const values=series.flatMap(s=>s.values).filter(Number.isFinite);
   const min=Math.min(...values,0), max=Math.max(...values,1), span=Math.max(max-min,1);
@@ -79,7 +80,10 @@ function lineChart(series, rounds, valueFormat = value => num(value)) {
     const color=PALETTE[idx%PALETTE.length];
     const pts=s.values.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
     const dots=s.values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="${s.highlight?3.1:2.5}" fill="${color}" />`).join('');
-    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>${dots}`;
+    const pointLabels=options.pointLabels
+      ? s.values.map((v,i)=>`<text x="${x(i)}" y="${Math.max(12,y(v)-9)}" text-anchor="middle" class="tb-point-label">${esc(valueFormat(v))}</text>`).join('')
+      : '';
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>${dots}${pointLabels}`;
   }).join('');
   const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-7}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
   const legend=series.map((s,idx)=>`<span><i style="background:${PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('');
@@ -161,8 +165,22 @@ function deltaCell(current, previous, kind='pct') {
   return { html:display, className:`tb-delta ${positive?'up':'down'}` };
 }
 
-function dashboardKpi(label,value,note='',tone='') {
-  return `<div class="tb-kpi"><span>${esc(label)}</span><strong class="${tone}">${value}</strong><small>${esc(note)}</small></div>`;
+function rankTone(rank,total) {
+  if (!Number.isFinite(rank) || !Number.isFinite(total) || total <= 0) return '';
+  if (rank <= Math.max(3, Math.ceil(total * .3))) return 'good';
+  if (rank >= Math.max(1, Math.floor(total * .7))) return 'bad';
+  return 'warn';
+}
+
+function dashboardKpi(label,value,note='',tone='',noteTone='') {
+  return `<div class="tb-kpi"><span>${esc(label)}</span><strong class="${tone}">${value}</strong><small class="${noteTone}">${esc(note)}</small></div>`;
+}
+
+function netProfitCompanion(company, rounds) {
+  return `<div class="tb-companion-trend"><span class="label">Net profit</span>${rounds.map(r=>{
+    const value=Number(snapshotFor(company,r).netProfit||0);
+    return `<span class="item"><b>R${r}</b><strong class="${value>=0?'good':'bad'}">${money(value)}</strong></span>`;
+  }).join('')}</div>`;
 }
 
 export function parityDashboardView(state, requestedRound) {
@@ -184,23 +202,23 @@ export function parityDashboardView(state, requestedRound) {
     [{text:'Unit cost'},{html:money(user.unitCost)},deltaCell(user.unitCost,previous?.unitCost,'money')],
     [{text:'Selling price'},{html:money(user.price)},deltaCell(user.price,previous?.price,'money')],
     [{text:'Cash'},{html:money(user.cash)},deltaCell(user.cash,previous?.cash)],
-    [{text:'Practice NPV'},{html:money(user.npv)},deltaCell(user.npv,previous?.npv)],
+    [{text:'Practice NPV',className:'tb-primary-row'},{html:money(user.npv),className:'tb-primary-row'},deltaCell(user.npv,previous?.npv)],
     [{text:'Rank'},{html:`#${npvRank} / ${state.companies.length}`},{html:'—',className:'tb-delta neutral'}]
   ];
 
   const revenueBlock = completed.length < 2
     ? `<div class="tb-trend-empty"><span>Revenue R0</span><strong>${money(user.revenue)}</strong><p>Trend muncul setelah Round 1.</p></div>`
-    : lineChart([{
+    : `${lineChart([{
         name:company.name,
         values:completed.map(r=>snapshotFor(company,r).revenue||0),
         highlight:true
-      }],completed,v=>money(v));
+      }],completed,v=>money(v),{pointLabels:true})}${netProfitCompanion(company,completed)}`;
 
   return page('Management Dashboard','Compact operating and financial overview aligned to the recorded MBS layout.',state,round,`
     <div class="tb-kpi-strip">
-      ${dashboardKpi('Practice NPV',money(user.npv),`Rank #${npvRank}/${state.companies.length}`)}
+      ${dashboardKpi('Practice NPV',money(user.npv),`Rank #${npvRank}/${state.companies.length}`,'',rankTone(npvRank,state.companies.length))}
       ${dashboardKpi('Net Profit',money(user.netProfit),`Round ${round}`,user.netProfit>=0?'good':'bad')}
-      ${dashboardKpi('Market Share',pct(user.marketShare),`Rank #${shareCtx.rank}/${state.companies.length}`)}
+      ${dashboardKpi('Market Share',pct(user.marketShare),`Rank #${shareCtx.rank}/${state.companies.length}`,'',rankTone(shareCtx.rank,state.companies.length))}
       ${dashboardKpi('Cash',money(user.cash),user.overdraft>0?`Overdraft ${money(user.overdraft)}`:'No overdraft')}
       ${dashboardKpi('Unit Cost',money(user.unitCost),`Price ${money(user.price)}`,user.unitCost>user.price?'bad':'')}
     </div>

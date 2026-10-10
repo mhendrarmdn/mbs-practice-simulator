@@ -100,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.2</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.3</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -149,10 +149,8 @@ export function shell(state, activeTab, themePreference, ui = {}) {
         <header class="topbar">
           <div class="top-left top-left-with-menu">
             <button class="hamburger" data-action="toggle-sidebar" aria-label="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}" title="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}"><span></span><span></span><span></span></button>
-            <div>
-              <strong>${esc(state.teamName)}</strong>
-              <small>${roundHeaderLabel(state)}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
-            </div>
+            <div class="team-title"><strong>${esc(state.teamName)}</strong></div>
+            <span class="round-pill">${roundHeaderLabel(state)}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</span>
           </div>
           <div class="top-actions">
             <select id="modeSelect" class="top-control" aria-label="Simulation mode" ${state.roomCode && !isCaptain() ? 'disabled' : ''}>
