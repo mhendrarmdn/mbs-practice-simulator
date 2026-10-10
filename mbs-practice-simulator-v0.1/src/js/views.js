@@ -94,8 +94,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2</small></div>
-          <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Tutup sidebar" title="Tutup sidebar"><span></span><span></span><span></span></button>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.1</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
