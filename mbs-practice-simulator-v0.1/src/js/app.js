@@ -1,5 +1,5 @@
 import '../css/app.css';
-import { MAX_ROUNDS, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, WORKBOOK_RESULT_ROUNDS } from './config.js';
+import { MAX_ROUNDS, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, STRATEGY_GOALS, WORKBOOK_RESULT_ROUNDS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';
 import {
@@ -21,6 +21,7 @@ import { exportGame, importGame } from './persistence.js';
 import { getThemePreference, initTheme, setThemePreference } from './theme.js';
 import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
 import { buildRound6Review, buildWorkbookPlanMarkdown } from './workbookLab.js';
+import { exportWorkbookExcel } from './excelExporter.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -280,6 +281,19 @@ function bindEvents() {
     render(false);
   });
 
+  document.querySelector('#strategyGoal')?.addEventListener('change', async event => {
+    if (!captainOnly('Strategy goal')) {
+      event.target.value = state.strategyGoal || 'balancedValue';
+      return;
+    }
+    const key = event.target.value;
+    if (!STRATEGY_GOALS[key]) return;
+    state.strategyGoal = key;
+    persistLocal();
+    if (state.roomCode) await commitCanonicalState();
+    render();
+  });
+
   document.querySelector('#scenarioPreset')?.addEventListener('change', async event => {
     if (!captainOnly('Scenario preset')) {
       event.target.value = state.scenarioPreset || 'auto';
@@ -363,6 +377,9 @@ function bindEvents() {
 
       } else if (action === 'export-workbook-plan') {
         exportWorkbookPlan();
+
+      } else if (action === 'export-workbook-excel') {
+        exportWorkbookExcel(state);
 
       } else if (action === 'toggle-surprise') {
         await updateCaptainSetting(() => { state.surpriseMode = !state.surpriseMode; });
