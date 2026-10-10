@@ -1,5 +1,5 @@
 import '../css/app.css';
-import { ROUND1_REFERENCE, ROLE_KEY } from './config.js';
+import { ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';
 import {
@@ -214,6 +214,7 @@ function bindEvents() {
       return;
     }
     state.mode = event.target.value;
+    if (state.mode === 'competition') state.scenarioPreset = 'auto';
     state.decisionLocked = false;
     state.lockReason = '';
     state.timerRemaining = state.timerSeconds;
@@ -247,6 +248,19 @@ function bindEvents() {
     state.sensitivity.deltaPct = Number(event.target.value);
     persistLocal();
     render(false);
+  });
+
+  document.querySelector('#scenarioPreset')?.addEventListener('change', async event => {
+    if (!captainOnly('Scenario preset')) {
+      event.target.value = state.scenarioPreset || 'auto';
+      return;
+    }
+    const key = event.target.value;
+    if (!SCENARIO_PRESETS[key]) return;
+    state.scenarioPreset = key;
+    persistLocal();
+    if (state.roomCode) await commitCanonicalState();
+    render();
   });
 
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', async () => {

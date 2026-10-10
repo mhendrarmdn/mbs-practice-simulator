@@ -126,7 +126,7 @@ function botBaseline(name, strategy, index) {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.3.0',
+    version: '0.4.0',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -144,6 +144,7 @@ export function makeInitialState(team = 'MARKOWITZ') {
     eventHistory: [],
     economy: null,
     surpriseMode: true,
+    scenarioPreset: 'auto',
     sensitivity: { key: 'price', deltaPct: 10 },
     companies: [
       baselineUser(team),
@@ -158,7 +159,7 @@ export function makeInitialState(team = 'MARKOWITZ') {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.3.0';
+  state.version = '0.4.0';
   state.mode = ['training', 'competition', 'sandbox'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -169,6 +170,7 @@ export function migrateState(input) {
   if (state.lastEvent && state.eventHistory.length === 0 && state.currentRound > 0) {
     state.eventHistory.push({ round: state.currentRound, ...state.lastEvent });
   }
+  state.scenarioPreset = state.scenarioPreset || 'auto';
   state.sensitivity = state.sensitivity || { key: 'price', deltaPct: 10 };
   state.maxRounds = state.maxRounds || MAX_ROUNDS;
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;

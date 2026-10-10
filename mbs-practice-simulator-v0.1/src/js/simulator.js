@@ -3,7 +3,8 @@ import {
   BASE_MARKET_SIZE,
   DISCOUNT_RATE,
   MATERIAL_PER_UNIT,
-  MATERIAL_PRICE
+  MATERIAL_PRICE,
+  SCENARIO_PRESETS
 } from './config.js';
 import { snapshot, userCompany } from './state.js';
 import { clamp, rngFrom } from './utils.js';
@@ -23,12 +24,35 @@ export function normalizeDecision(decision) {
 
 export function economyForRound(state, round) {
   const random = rngFrom(`${state.roomCode || state.teamName || 'LOCAL'}-R${round}`);
+  const presetKey = state.mode === 'competition' ? 'auto' : (state.scenarioPreset || 'auto');
+  const preset = SCENARIO_PRESETS[presetKey] || SCENARIO_PRESETS.auto;
+
+  if (presetKey === 'baseline') {
+    return {
+      priceIndex: 100,
+      growth: 1,
+      seasonal: 1,
+      marketGrowth: 1,
+      rawIndex: 1,
+      demandFactor: 1,
+      capacityFactor: 1,
+      event: null,
+      presetKey
+    };
+  }
+
   let growth = 0.96 + random() * 0.15;
   const seasonal = 0.96 + random() * 0.10;
   let rawIndex = 0.97 + random() * 0.10;
   let event = null;
+  let capacityFactor = 1;
 
-  if (state.surpriseMode && round >= 2 && random() < 0.50) {
+  if (presetKey !== 'auto') {
+    event = preset.event || null;
+    rawIndex *= preset.raw || 1;
+    growth *= preset.demand || 1;
+    capacityFactor = preset.capacity || 1;
+  } else if (state.surpriseMode && round >= 2 && random() < 0.50) {
     const events = [
       { title: 'Raw Material Shock', text: 'Harga input industri naik tajam.', raw: 1.18, demand: 1, capacity: 1 },
       { title: 'Demand Boom', text: 'Momentum musiman mendorong permintaan pasar.', raw: 1, demand: 1.15, capacity: 1 },
@@ -38,6 +62,7 @@ export function economyForRound(state, round) {
     event = events[Math.floor(random() * events.length)];
     rawIndex *= event.raw;
     growth *= event.demand;
+    capacityFactor = event.capacity || 1;
   }
 
   return {
@@ -47,8 +72,9 @@ export function economyForRound(state, round) {
     marketGrowth: growth,
     rawIndex,
     demandFactor: growth * seasonal,
-    capacityFactor: event?.capacity || 1,
-    event
+    capacityFactor,
+    event,
+    presetKey
   };
 }
 
