@@ -73,8 +73,33 @@ function niceStep(raw) {
   return nice * power;
 }
 
+function compactNumberAxis(value) {
+  const v=Number(value)||0;
+  const sign=v<0?'-':'';
+  const abs=Math.abs(v);
+  if (abs >= 1000000) {
+    const scaled=abs/1000000;
+    return sign + (Number.isInteger(scaled)?scaled.toFixed(0):scaled.toFixed(1)) + 'M';
+  }
+  if (abs >= 1000) return sign + Math.round(abs/1000) + 'k';
+  return sign + Math.round(abs).toLocaleString('en-US');
+}
+
+function compactMoneyAxis(value) {
+  const v=Number(value)||0;
+  const sign=v<0?'-':'';
+  const dollar=String.fromCharCode(36);
+  const abs=Math.abs(v);
+  if (abs >= 1000000) {
+    const scaled=abs/1000000;
+    return sign + dollar + (Number.isInteger(scaled)?scaled.toFixed(0):scaled.toFixed(1)) + 'M';
+  }
+  if (abs >= 1000) return sign + dollar + Math.round(abs/1000) + 'k';
+  return sign + dollar + Math.round(abs).toLocaleString('en-US');
+}
+
 function lineChart(series, rounds, valueFormat = value => num(value), options = {}) {
-  const width=720, height=230, padTop=28, padBottom=30, padLeft=88, padRight=28;
+  const width=720, height=230, padTop=28, padBottom=30, padLeft=104, padRight=34;
   const values=series.flatMap(s=>s.values).map(Number).filter(Number.isFinite);
   const dataMin=Math.min(...values,0), dataMax=Math.max(...values,0);
   const step=Number(options.tickStep)||niceStep(Math.max(dataMax-dataMin,1)/4);
@@ -89,7 +114,8 @@ function lineChart(series, rounds, valueFormat = value => num(value), options = 
   const grid=ticks.map(val=>{
     const yy=y(val);
     const zero=Math.abs(val)<step*1e-8;
-    return `<g><line x1="${padLeft}" y1="${yy}" x2="${width-padRight}" y2="${yy}" class="${zero&&options.zeroLine?'tb-zero-line':'tb-grid-line'}"/><text x="4" y="${yy+4}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
+    const axisFormat=options.axisFormat || valueFormat;
+    return `<g><line x1="${padLeft}" y1="${yy}" x2="${width-padRight}" y2="${yy}" class="${zero&&options.zeroLine?'tb-zero-line':'tb-grid-line'}"/><text x="4" y="${yy+4}" class="tb-axis-label">${esc(axisFormat(val))}</text></g>`;
   }).join('');
   const negativeArea = options.negativeArea && min < 0
     ? `<rect x="${padLeft}" y="${y(0)}" width="${width-padLeft-padRight}" height="${Math.max(0,height-padBottom-y(0))}" class="tb-negative-zone"/>`
@@ -108,13 +134,16 @@ function lineChart(series, rounds, valueFormat = value => num(value), options = 
       if(!show) return '';
       const vv=Number(v)||0;
       const offset=labelMode==='last' ? (offsets[idx]??-10) : -10;
-      return `<text x="${x(i)}" y="${Math.max(13,Math.min(height-padBottom-4,y(vv)+offset))}" text-anchor="middle" class="tb-point-label">${esc(valueFormat(vv))}</text>`;
+      const first=i===0, last=i===s.values.length-1;
+      const dx=first?8:last?-8:0;
+      const anchor=first?'start':last?'end':'middle';
+      return `<text x="${x(i)+dx}" y="${Math.max(13,Math.min(height-padBottom-4,y(vv)+offset))}" text-anchor="${anchor}" class="tb-point-label">${esc(valueFormat(vv))}</text>`;
     }).join('');
     return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:2}" opacity="${s.highlight?1:.82}"/>${dots}${pointLabels}`;
   }).join('');
   const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-7}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
   const legend=options.hideLegend ? '' : `<div class="tb-chart-legend">${series.map((s,idx)=>`<span><i style="background:${s.color||PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('')}</div>`;
-  return `<div class="tb-chart"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${negativeArea}${grid}${paths}${labels}</svg>${legend}</div>`;
+  return `<div class="tb-chart ${options.hideLegend?'no-legend':''}"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${negativeArea}${grid}${paths}${labels}</svg>${legend}</div>`;
 }
 
 function barChart(items, formatter = value => num(value)) {
@@ -194,8 +223,8 @@ function deltaCell(current, previous, kind='pct') {
 
 function rankTone(rank,total) {
   if (!Number.isFinite(rank) || !Number.isFinite(total) || total <= 0) return '';
-  if (rank <= Math.max(3, Math.ceil(total * .3))) return 'good';
-  if (rank >= Math.max(1, Math.floor(total * .7))) return 'bad';
+  if (rank <= Math.max(1, Math.ceil(total * .3))) return 'good';
+  if (rank >= Math.max(1, Math.ceil(total * .8))) return 'bad';
   return 'warn';
 }
 
@@ -208,6 +237,22 @@ function netProfitCompanion(company, rounds) {
     const value=Number(snapshotFor(company,r).netProfit||0);
     return `<span class="item"><b>R${r}</b><strong class="${value>=0?'good':'bad'}">${money(value)}</strong></span>`;
   }).join('')}</div>`;
+}
+
+function financialDebrief(current, previous, round) {
+  if (!previous || round <= 0) return '';
+  const revenueChange=Number(current.revenue||0)-Number(previous.revenue||0);
+  const profitChange=Number(current.netProfit||0)-Number(previous.netProfit||0);
+  const previousCost=Number(previous.revenue||0)-Number(previous.netProfit||0);
+  const currentCost=Number(current.revenue||0)-Number(current.netProfit||0);
+  const costChange=currentCost-previousCost;
+  const revenuePct=previous.revenue ? revenueChange/Math.abs(previous.revenue) : 0;
+  const direction=revenueChange<0?'turun':'naik';
+  const profitVerb=profitChange<0?'memburuk':'membaik';
+  const costPhrase=costChange<0
+    ? `implied total cost turun hanya <b>${money(Math.abs(costChange))}</b>`
+    : `implied total cost justru naik <b>${money(Math.abs(costChange))}</b>`;
+  return `<div class="tb-insight financial"><strong>Financial debrief</strong><span>Revenue R${round} ${direction} <b>${money(Math.abs(revenueChange))} (${Math.abs(revenuePct*100).toFixed(1)}%)</b>, sementara net profit ${profitVerb} <b>${money(Math.abs(profitChange))}</b> menjadi <b class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</b>. ${costPhrase}; perubahan biaya tersebut jauh lebih kecil daripada pergerakan revenue.</span></div>`;
 }
 
 export function parityDashboardView(state, requestedRound) {
@@ -239,7 +284,7 @@ export function parityDashboardView(state, requestedRound) {
         name:company.name,
         values:completed.map(r=>snapshotFor(company,r).revenue||0),
         highlight:true
-      }],completed,v=>money(v),{pointLabels:true})}${netProfitCompanion(company,completed)}`;
+      }],completed,v=>money(v),{pointLabels:true,tickStep:1000000,axisFormat:compactMoneyAxis,hideLegend:true})}${netProfitCompanion(company,completed)}`;
 
   return page('Management Dashboard','Compact operating and financial overview aligned to the recorded MBS layout.',state,round,`
     <div class="tb-kpi-strip">
@@ -249,6 +294,7 @@ export function parityDashboardView(state, requestedRound) {
       ${dashboardKpi('Cash',money(user.cash),user.overdraft>0?`Overdraft ${money(user.overdraft)}`:'No overdraft')}
       ${dashboardKpi('Unit Cost',money(user.unitCost),`Price ${money(user.price)}`,user.unitCost>user.price?'bad':'')}
     </div>
+    ${financialDebrief(user,previous,round)}
     <div class="tb-dashboard-grid">
       ${panel('Business Summary',dataTable(['Measure','Value','Δ vs prior'],summaryRows),'tb-span-4')}
       ${panel('Revenue Trend',revenueBlock,'tb-span-8')}
@@ -329,15 +375,18 @@ export function productImageView(state, requestedRound) {
   const iMax=Math.min(1,iMin+Math.ceil((iRawMax-iMin)/iStep)*iStep);
   const qSpan=Math.max(qMax-qMin,.1), iSpan=Math.max(iMax-iMin,.1);
 
-  const rows=pointsData.map(({index,company,quality,image,price})=>[
-    {html:`<span class="tb-point-key ${company.isUser?'user':''}">${index}</span>`},
-    {html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},
-    {html:fixed(quality,3)},
-    {html:fixed(image,3)},
-    {html:`${quality-qAvg>=0?'+':''}${fixed(quality-qAvg,3)}`,className:quality>=qAvg?'good':'bad'},
-    {html:`${image-iAvg>=0?'+':''}${fixed(image-iAvg,3)}`,className:image>=iAvg?'good':'bad'},
-    {html:money(price)}
-  ]);
+  const rows=pointsData.map(({index,company,quality,image,price})=>{
+    const userClass=company.isUser?'tb-user-row-cell':'';
+    return [
+      {html:`<span class="tb-point-key ${company.isUser?'user':''}">${index}</span>`,className:`tb-no-cell ${userClass}`},
+      {html:esc(company.name),className:`tb-company-name ${userClass}`},
+      {html:fixed(quality,3),className:userClass},
+      {html:fixed(image,3),className:userClass},
+      {html:`${quality-qAvg>=0?'+':''}${fixed(quality-qAvg,3)}`,className:`${quality>=qAvg?'good':'bad'} ${userClass}`},
+      {html:`${image-iAvg>=0?'+':''}${fixed(image-iAvg,3)}`,className:`${image>=iAvg?'good':'bad'} ${userClass}`},
+      {html:money(price),className:userClass}
+    ];
+  });
 
   const width=720,height=390,left=66,right=24,top=34,bottom=50;
   const plotW=width-left-right, plotH=height-top-bottom;
@@ -362,11 +411,11 @@ export function productImageView(state, requestedRound) {
   const quadrants=`
     <text x="${left+10}" y="${top+18}" class="tb-quadrant-label">Low quality · High image</text>
     <text x="${width-right-10}" y="${top+18}" text-anchor="end" class="tb-quadrant-label">High quality · High image</text>
-    <text x="${left+10}" y="${height-bottom-10}" class="tb-quadrant-label">Low quality · Low image</text>
-    <text x="${width-right-10}" y="${height-bottom-10}" text-anchor="end" class="tb-quadrant-label">High quality · Low image</text>`;
-  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 ${width} ${height}">${xTicks}${yTicks}<line x1="${avgX}" y1="${top}" x2="${avgX}" y2="${height-bottom}" class="tb-scatter-average"/><line x1="${left}" y1="${avgY}" x2="${width-right}" y2="${avgY}" class="tb-scatter-average"/>${quadrants}<line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="tb-scatter-axis-line"/><line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="tb-scatter-axis-line"/>${plotted}<text x="${left+plotW/2}" y="${height-5}" text-anchor="middle" class="tb-scatter-axis-label">Quality</text><text x="16" y="${top+plotH/2}" text-anchor="middle" class="tb-scatter-axis-label" transform="rotate(-90 16 ${top+plotH/2})">Image</text><text x="${avgX+7}" y="${top+30}" class="tb-scatter-average-label">Market avg quality</text><text x="${width-right-5}" y="${avgY-7}" text-anchor="end" class="tb-scatter-average-label">Market avg image</text></svg><div class="tb-scatter-help">Nomor titik sama dengan kolom # pada tabel. Hover titik untuk detail lengkap competitor.</div></div>`;
+    <text x="${left+14}" y="${height-bottom-28}" class="tb-quadrant-label">Low quality · Low image</text>
+    <text x="${width-right-22}" y="${height-bottom-28}" text-anchor="end" class="tb-quadrant-label">High quality · Low image</text>`;
+  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 ${width} ${height}">${xTicks}${yTicks}<line x1="${avgX}" y1="${top}" x2="${avgX}" y2="${height-bottom}" class="tb-scatter-average"/><line x1="${left}" y1="${avgY}" x2="${width-right}" y2="${avgY}" class="tb-scatter-average"/>${quadrants}<line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="tb-scatter-axis-line"/><line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="tb-scatter-axis-line"/>${plotted}<text x="${left+plotW/2}" y="${height-5}" text-anchor="middle" class="tb-scatter-axis-label">Quality</text><text x="16" y="${top+plotH/2}" text-anchor="middle" class="tb-scatter-axis-label" transform="rotate(-90 16 ${top+plotH/2})">Image</text><text x="${avgX+7}" y="${top+30}" class="tb-scatter-average-label">Market avg quality</text><text x="${width-right-5}" y="${avgY-7}" text-anchor="end" class="tb-scatter-average-label">Market avg image</text></svg><div class="tb-scatter-help">Nomor titik sama dengan kolom No. pada tabel. Hover titik untuk melihat nama dan detail competitor.</div></div>`;
   return page('Product Image','Competitive positioning using market-scaled quality and image axes for the selected round.',state,round,
-    `<div class="tb-two-col product-image-layout">${panel('Quality / Image Positioning',scatter,'tb-equal-panel')}${panel('Company Position',dataTable(['#','Company','Quality','Image','Δ Q avg','Δ I avg','Price'],rows),'tb-equal-panel')}</div>`
+    `<div class="tb-two-col product-image-layout">${panel('Quality / Image Positioning',scatter,'tb-equal-panel')}${panel('Company Position',dataTable(['No.','Company','Quality','Image','Δ Q avg','Δ I avg','Price'],rows,'company-position-table'),'tb-equal-panel')}</div>`
   );
 }
 
@@ -399,18 +448,23 @@ export function revenueStatusView(state, requestedRound) {
   const ranked=state.companies
     .map(c=>({company:c,s:snapshotFor(c,round)}))
     .sort((a,b)=>(b.s.revenue||0)-(a.s.revenue||0));
-  const rows=ranked.map(({company:c,s},idx)=>[
-    {html:`#${idx+1}`,className:c.isUser?'tb-user-rank':''},
-    {html:`<span class="${c.isUser?'tb-user-dot':''}">${esc(c.name)}</span>`},
-    {html:money(s.revenue)},
-    {html:num(s.sales)},
-    {html:money(s.netProfit),className:s.netProfit>=0?'good':'bad'}
-  ]);
+  const rows=ranked.map(({company:c,s},idx)=>{
+    const userClass=c.isUser?'tb-user-row-cell':'';
+    return [
+      {html:`#${idx+1}`,className:`${c.isUser?'tb-user-rank':''} ${userClass}`},
+      {html:esc(c.name),className:`tb-company-name ${userClass}`},
+      {html:money(s.revenue),className:userClass},
+      {html:num(s.sales),className:userClass},
+      {html:money(s.netProfit),className:`${s.netProfit>=0?'good':'bad'} ${userClass}`}
+    ];
+  });
   const trend = rounds.length < 2
     ? panel('Revenue / Profit Snapshot',`<div class="tb-single-finance-grid"><div><span>Revenue R${round}</span><strong>${money(current.revenue)}</strong></div><div><span>Net Profit R${round}</span><strong class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</strong></div></div>`)
-    : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:1000000,hideLegend:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:250000,hideLegend:true,zeroLine:true,negativeArea:true}))}</div>`;
+    : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:1000000,axisFormat:compactMoneyAxis,hideLegend:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:250000,axisFormat:compactMoneyAxis,hideLegend:true,zeroLine:true,negativeArea:true}))}</div>`;
+  const previousRound=rounds.filter(r=>r<round).at(-1);
+  const previous=Number.isFinite(previousRound)?snapshotFor(company,previousRound):null;
   return page('Revenue / Sales Status','Revenue, sales volume, and profitability by company and across rounds.',state,round,
-    `${trend}${panel('Company Revenue Status',dataTable(['Rank','Company','Revenue','Sales','Net Profit'],rows))}`
+    `${financialDebrief(current,previous,round)}${trend}${panel('Company Revenue Status',dataTable(['Rank','Company','Revenue','Sales','Net Profit'],rows,'revenue-status-table'))}`
   );
 }
 
@@ -435,7 +489,7 @@ export function salesTrendView(state, requestedRound) {
         {name:'Potential demand',values:rounds.map(r=>snapshotFor(c,r).potentialDemand||0)},
         {name:'Sales',values:rounds.map(r=>snapshotFor(c,r).sales||0),highlight:true},
         {name:'Production',values:rounds.map(r=>snapshotFor(c,r).production||0)}
-      ],rounds,v=>num(v),{labelMode:'last',tickStep:250000}));
+      ],rounds,v=>num(v),{labelMode:'last',tickStep:250000,axisFormat:compactNumberAxis}));
   const demand=Number(current.potentialDemand||0), sales=Number(current.sales||0), production=Number(current.production||0);
   const lost=Math.max(0,demand-sales), lostPct=demand>0?lost/demand:0;
   const carryUsed=Math.max(0,sales-production);

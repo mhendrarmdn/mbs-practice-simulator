@@ -263,6 +263,7 @@ function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
       activeTab = button.dataset.tab;
+      parityRound = null;
       if (mobileSidebarQuery.matches) {
         sidebarCollapsed = true;
       }

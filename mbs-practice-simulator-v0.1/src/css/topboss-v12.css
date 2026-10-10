@@ -1809,3 +1809,90 @@ body{
   .tb-scatter{min-height:400px!important}
   .tb-scatter svg{height:370px!important}
 }
+
+
+/* v1.2.6 — chart readability, table alignment, and financial insight polish */
+
+/* Keep textual company columns textual; numeric columns remain right aligned. */
+.company-position-table th:nth-child(2),
+.company-position-table td:nth-child(2),
+.revenue-status-table th:nth-child(2),
+.revenue-status-table td:nth-child(2){
+  text-align:left!important;
+}
+.company-position-table th:first-child,
+.company-position-table td:first-child,
+.revenue-status-table th:first-child,
+.revenue-status-table td:first-child{
+  text-align:center!important;
+}
+.tb-company-name{
+  text-align:left!important;
+  font-weight:500;
+}
+.tb-user-row-cell{
+  background:#f2f7fb!important;
+}
+.tb-user-row-cell.tb-company-name{
+  color:#1f5f99!important;
+  font-weight:800!important;
+}
+
+/* Revenue/dashboard charts: extra breathing room and larger no-legend plotting area. */
+.tb-chart.no-legend svg{
+  height:255px!important;
+}
+.tb-dashboard-grid{
+  align-items:stretch!important;
+}
+.tb-dashboard-grid>.tb-panel{
+  height:100%!important;
+  margin-bottom:0!important;
+}
+.tb-two-col{
+  align-items:stretch!important;
+}
+.tb-two-col>.tb-panel{
+  height:100%!important;
+}
+
+/* Product Image labels stay informative without overpowering the plot. */
+.tb-scatter-average-label{
+  fill:#8a6919!important;
+  font-size:9px!important;
+  font-weight:600!important;
+}
+.tb-quadrant-label{
+  font-size:8.5px!important;
+  font-weight:500!important;
+  fill:#718190!important;
+}
+.competitor-point,
+.user-point{
+  cursor:help;
+}
+
+/* Financial debrief uses a slightly warmer accent than operating debrief. */
+.tb-insight.financial{
+  border-left-color:#d8a526;
+  background:#fffdf6;
+}
+.tb-insight.financial>strong{
+  color:#8d6811;
+}
+
+/* Sidebar edge cue: subtle inset fade implies more scrollable items below. */
+.nav{
+  box-shadow:inset 0 -20px 18px -20px rgba(31,79,130,.34)!important;
+}
+
+/* Make ranking tiers visually distinct: good / middle / bottom. */
+.tb-kpi>small.good{color:#197956!important}
+.tb-kpi>small.warn{color:#a9740d!important}
+.tb-kpi>small.bad{color:#b94149!important}
+
+/* Keep Sales Trend labels visually consistent with Revenue pages. */
+.tb-page .tb-axis-label{
+  font-family:'IBM Plex Sans',sans-serif!important;
+  font-weight:500!important;
+}
