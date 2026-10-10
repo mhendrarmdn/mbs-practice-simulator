@@ -2,7 +2,7 @@
 -- Run this whole file in Supabase > SQL Editor.
 -- Safe to run over the v0.1 schema: it adds revision + member presence while keeping legacy RPCs.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.mbs_rooms (
   id uuid primary key default gen_random_uuid(),
@@ -41,7 +41,7 @@ create or replace function public.mbs_create_room_v03(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_room_id uuid;
@@ -96,7 +96,7 @@ create or replace function public.mbs_join_room_v03(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_room public.mbs_rooms%rowtype;
@@ -154,7 +154,7 @@ create or replace function public.mbs_get_room_v03(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_room public.mbs_rooms%rowtype;
@@ -215,7 +215,7 @@ create or replace function public.mbs_patch_draft_v03(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_room_id uuid;
@@ -268,7 +268,7 @@ create or replace function public.mbs_commit_state_v03(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_room_id uuid;
@@ -324,7 +324,7 @@ create or replace function public.mbs_create_room(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   insert into public.mbs_rooms(room_code, secret_hash, state, revision, updated_at)
@@ -340,7 +340,7 @@ create or replace function public.mbs_get_room(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_state jsonb;
@@ -362,7 +362,7 @@ create or replace function public.mbs_update_room(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   update public.mbs_rooms
