@@ -4,11 +4,13 @@ import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
 import { decisionMatrices } from './decisionMatrix.js';
 import { competitionSnapshot, presentationBrief, strategyBrief, stressTestDraft } from './competitionCenter.js';
+import { buildRound6Review, workbookStage } from './workbookLab.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
   dashboard: '▦',
   competition: '◆',
+  workbook: 'W',
   decisions: '⌁',
   status: '◎',
   analysis: '▤',
@@ -55,11 +57,12 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.6</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.7</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
           ${navButton('competition', 'Competition Center', activeTab)}
+          ${navButton('workbook', 'Workbook Lab', activeTab)}
           ${navButton('decisions', 'Business Decisions', activeTab)}
           ${navButton('status', 'Status', activeTab)}
           ${navButton('analysis', 'Analysis', activeTab)}
@@ -88,6 +91,7 @@ export function shell(state, activeTab, themePreference) {
               <option value="training" ${state.mode === 'training' ? 'selected' : ''}>Training</option>
               <option value="competition" ${state.mode === 'competition' ? 'selected' : ''}>Competition</option>
               <option value="sandbox" ${state.mode === 'sandbox' ? 'selected' : ''}>Sandbox</option>
+              <option value="workbook" ${state.mode === 'workbook' ? 'selected' : ''}>Workbook R0–R5 + R6 Plan</option>
             </select>
             <span class="badge timer-badge ${state.mode === 'competition' && timer <= 120 ? 'danger-badge' : ''}">
               ${state.mode === 'competition' ? `◷ ${mm}:${ss}` : 'NO TIMER'}
@@ -131,7 +135,7 @@ export function dashboardView(state) {
   return `
     <div class="page-head">
       <div><div class="eyebrow">EXECUTIVE COCKPIT</div><h1>Dashboard</h1><p class="subtitle">Decision → operation → financial impact, dalam satu ronde yang konsisten.</p></div>
-      <div class="actions"><button class="secondary" data-action="export-save">⇩ Export Save</button><button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds ? 'disabled' : ''}>▶ Next Decision</button></div>
+      <div class="actions"><button class="secondary" data-action="export-save">⇩ Export Save</button><button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds && state.mode !== 'workbook' ? 'disabled' : ''}>▶ ${state.mode === 'workbook' && state.currentRound >= state.maxRounds ? 'Open R6 Plan' : 'Next Decision'}</button></div>
     </div>
     ${latestEvent ? `<div class="event"><span>✦</span><div><strong>Latest scenario: ${esc(latestEvent.title)}</strong><span class="event-copy">Round ${latestEvent.round} · ${esc(latestEvent.text)}</span></div></div>` : ''}
     <section class="metric-grid">
@@ -185,7 +189,7 @@ export function competitionView(state) {
       </div>
       <div class="actions">
         <button class="secondary" data-action="export-competition-brief">⇩ Export Competition Brief</button>
-        <button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds ? 'disabled' : ''}>▶ Open Decision Room</button>
+        <button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds && state.mode !== 'workbook' ? 'disabled' : ''}>▶ ${state.mode === 'workbook' && state.currentRound >= state.maxRounds ? 'Open R6 Plan' : 'Open Decision Room'}</button>
       </div>
     </div>
 
@@ -256,10 +260,71 @@ export function competitionView(state) {
   `;
 }
 
+
+export function workbookView(state) {
+  const stage = workbookStage(state);
+  const review = buildRound6Review(state);
+  const plan = state.workbookPlan;
+  const progress = [0,1,2,3,4,5].map(round => ({
+    round,
+    done: state.currentRound >= round
+  }));
+
+  return `
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">STUDENT WORKBOOK FLOW</div>
+        <h1>Workbook Lab</h1>
+        <p class="subtitle">Workbook exercise = hasil R0–R5 untuk controlling, lalu Round 6 dibuat sebagai business plan saja dan tidak disimulasikan.</p>
+      </div>
+      <div class="actions">
+        <button class="secondary" data-action="export-workbook-plan" ${!stage.resultsComplete ? 'disabled' : ''}>⇩ Export R6 Plan</button>
+        <button class="primary" data-action="goto-decisions">${stage.resultsComplete ? 'Open Round 6 Plan' : 'Continue Workbook Round'}</button>
+      </div>
+    </div>
+
+    <section class="workbook-flow">
+      ${progress.map(item=>`<div class="${item.done ? 'done' : ''}"><b>R${item.round}</b><span>${item.round===0?'Baseline':item.done?'Result captured':'Pending'}</span></div>`).join('')}
+      <div class="${stage.resultsComplete ? 'plan-ready' : ''}"><b>R6</b><span>PLAN ONLY</span></div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card">
+        ${cardHead('CONTROL / CHECK', 'R0–R5 Review', '▥')}
+        <div class="brief-list">${review.observations.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+        ${!stage.resultsComplete ? `<div class="callout">Selesaikan simulated results sampai Round 5. Setelah itu simulator tidak akan menghasilkan result Round 6.</div>` : ''}
+      </div>
+
+      <div class="card">
+        ${cardHead('PLAN / ADJUST', 'Round 6 Planning Rationale', 'W')}
+        <div class="brief-list">${review.rationale.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+        ${stage.resultsComplete ? `<div class="callout"><strong>Workbook rule:</strong> Round 6 berisi keputusan manajemen, tetapi revenue/sales/profit/share/financial result R6 sengaja tidak dibuat.</div>` : ''}
+      </div>
+    </section>
+
+    ${stage.resultsComplete ? `
+      <section class="card workbook-plan-card">
+        ${cardHead(plan ? 'FINALIZED PLAN' : 'DRAFT PLAN', 'Round 6 — Eight Management Decisions', '06')}
+        <div class="workbook-decision-grid">
+          ${review.decisionSummary.map(([label,value])=>`<div><span>${esc(label)}</span><strong>${label==='Price'?money(value):num(value)}</strong></div>`).join('')}
+        </div>
+        <div class="workbook-no-result">
+          <b>NO R6 RESULT</b>
+          <span>Tidak ada simulated Revenue, Sales, Market Share, Earnings, Cash, Equity, atau NPV untuk R6 Workbook Planning.</span>
+        </div>
+        <div class="actions">
+          ${plan ? '<button class="secondary" data-action="reopen-workbook-plan">Reopen R6 Plan</button>' : '<button class="primary" data-action="goto-decisions">Edit / Finalize R6 Plan</button>'}
+        </div>
+      </section>
+    ` : ''}
+  `;
+}
+
 export function decisionsView(state) {
   const user = state.companies.find(company => company.isUser);
   const d = state.draft;
-  const complete = state.currentRound >= state.maxRounds;
+  const workbookPlanning = state.mode === 'workbook' && state.currentRound >= state.maxRounds;
+  const complete = state.currentRound >= state.maxRounds && !workbookPlanning;
   const captain = isCaptain() || !state.roomCode;
   const locked = Boolean(state.decisionLocked);
   const s = previewSensitivity(state, state.sensitivity?.key || 'price', state.sensitivity?.deltaPct ?? 10);
@@ -267,7 +332,7 @@ export function decisionsView(state) {
 
   return `
     <div class="page-head">
-      <div><div class="eyebrow">ROUND ${Math.min(state.currentRound + 1, state.maxRounds)}</div><h1>Business Decisions</h1><p class="subtitle">Semua anggota room dapat mengubah shared draft. Hanya Captain yang dapat lock dan submit ronde.</p></div>
+      <div><div class="eyebrow">${workbookPlanning ? 'ROUND 6 — PLAN ONLY' : 'ROUND '+Math.min(state.currentRound + 1, state.maxRounds)}</div><h1>${workbookPlanning ? 'Round 6 Business Plan' : 'Business Decisions'}</h1><p class="subtitle">${workbookPlanning ? 'Workbook planning stage: isi delapan keputusan berdasarkan review R0–R5. Plan ini tidak akan disimulasikan.' : 'Semua anggota room dapat mengubah shared draft. Hanya Captain yang dapat lock dan submit ronde.'}</p></div>
       <button class="secondary" data-action="toggle-lock" ${!captain ? 'disabled' : ''}>▣ ${locked ? 'Unlock Draft' : 'Lock Draft'}</button>
     </div>
     ${locked ? `<div class="event"><span>▣</span><div><strong>Draft locked</strong><span class="event-copy">${esc(state.lockReason || 'Manual lock')}</span></div></div>` : ''}
@@ -285,7 +350,7 @@ export function decisionsView(state) {
           ${field('Dividend', 'dividend', d.dividend, '10000', '$', locked)}
         </div>
         <div class="actions" style="margin-top:16px">
-          <button class="primary" data-action="submit-round" ${complete || !captain || locked ? 'disabled' : ''}>▣ ${complete ? 'GAME COMPLETE' : captain ? 'Lock & Submit Round' : 'Captain Submits Round'}</button>
+          <button class="primary" data-action="${workbookPlanning ? 'finalize-workbook-plan' : 'submit-round'}" ${complete || !captain || (locked && !workbookPlanning) || (workbookPlanning && state.workbookPlan) ? 'disabled' : ''}>▣ ${workbookPlanning ? (state.workbookPlan ? 'R6 PLAN FINALIZED' : 'Finalize R6 Business Plan') : complete ? 'GAME COMPLETE' : captain ? 'Lock & Submit Round' : 'Captain Submits Round'}</button>
           <button class="secondary" data-action="load-r1">Load R1 Reference</button>
         </div>
         ${state.roomCode && !captain ? '<div class="callout">Member mode: kamu bisa mengedit shared draft secara live, tetapi perubahan mode, lock, scenario, reset, dan submit tetap dikendalikan Captain.</div>' : ''}
@@ -326,7 +391,7 @@ export function decisionsView(state) {
             <div><span>Revenue</span><strong class="${s.revenueEffect >= 0 ? 'good' : 'bad'}">${s.revenueEffect >= 0 ? '+' : ''}${fixed(s.revenueEffect,1)}%</strong></div>
             <div><span>Profit</span><strong class="${s.profitEffect >= 0 ? 'good' : 'bad'}">${s.profitEffect >= 0 ? '+' : ''}${fixed(s.profitEffect,1)}%</strong></div>
           </div>
-          <div class="callout">Directional training estimate, bukan forecast resmi TopBoss.</div>
+          <div class="callout">${workbookPlanning ? 'Directional check untuk membantu rationale R6. Tidak menghasilkan R6 simulated result.' : 'Directional training estimate, bukan forecast resmi TopBoss.'}</div>
         </div>
       </div>
     </section>`;
@@ -383,6 +448,7 @@ export function historyView(state) {
 
 
 function formatMatrixValue(key, value) {
+  if (key === 'label') return value === undefined || value === null ? '—' : esc(String(value));
   if (value === undefined || value === null || Number.isNaN(Number(value))) return '—';
   if (key === 'share') return pct(Number(value));
   if (['price','unitCost'].includes(key)) return money(Number(value));
@@ -403,7 +469,7 @@ export function matrixView(state) {
           ${cardHead('DECISION MATRIX', matrix.title, '▥')}
           <p class="matrix-subtitle">${esc(matrix.subtitle)}</p>
           <div class="table-wrap"><table><thead><tr>${matrix.columns.map(([,label])=>`<th>${esc(label)}</th>`).join('')}</tr></thead>
-          <tbody>${matrix.rows.map(row=>`<tr>${matrix.columns.map(([key])=>`<td>${key==='round'?'R'+row[key]:formatMatrixValue(key,row[key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+          <tbody>${matrix.rows.map(row=>`<tr>${matrix.columns.map(([key])=>`<td class="${row.isPlan?'plan-cell':''}">${formatMatrixValue(key,row[key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
         </section>`).join('')}
     </div>`;
 }
@@ -511,6 +577,7 @@ export function setupView(state) {
 export function bodyForTab(state, activeTab) {
   switch (activeTab) {
     case 'competition': return competitionView(state);
+    case 'workbook': return workbookView(state);
     case 'decisions': return decisionsView(state);
     case 'status': return statusView(state);
     case 'analysis': return analysisView(state);
