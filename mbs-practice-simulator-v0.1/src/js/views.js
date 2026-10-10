@@ -2,6 +2,7 @@ import { OBSERVED_ANCHORS, SCENARIO_PRESETS, TRAINING_PROXY_NOTES } from './conf
 import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
+import { decisionMatrices } from './decisionMatrix.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
@@ -11,6 +12,7 @@ const NAV_ICONS = {
   analysis: '▤',
   financials: '◫',
   history: '↺',
+  matrix: '▥',
   leaderboard: '♛',
   scenarios: '✦',
   model: '◈',
@@ -51,7 +53,7 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.4</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.5</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
@@ -60,6 +62,7 @@ export function shell(state, activeTab, themePreference) {
           ${navButton('analysis', 'Analysis', activeTab)}
           ${navButton('financials', 'Financial Statements', activeTab)}
           ${navButton('history', 'Decision History', activeTab)}
+          ${navButton('matrix', 'Decision Matrices', activeTab)}
           ${navButton('leaderboard', 'Leaderboard', activeTab)}
           ${navButton('scenarios', 'Scenario Center', activeTab)}
           ${navButton('model', 'Model Transparency', activeTab)}
@@ -240,20 +243,27 @@ function competitionTable(state) {
 export function statusView(state) {
   const user = state.companies.find(company => company.isUser);
   const economy = state.economy;
-  return `<div class="page-head"><div><div class="eyebrow">MARKET + OPERATIONS</div><h1>Status</h1><p class="subtitle">Apa yang terjadi setelah keputusan dijalankan.</p></div></div>
+  const latest = user.history?.at(-1) || {};
+  return `<div class="page-head"><div><div class="eyebrow">MARKET + OPERATIONS</div><h1>Status</h1><p class="subtitle">Apa yang terjadi setelah keputusan dijalankan, termasuk timing operasi antar-round.</p></div></div>
     <section class="triple-grid">
       <div class="card">${cardHead('ECONOMY','Economic Environment')}${statsList([['Price Index',economy?fixed(economy.priceIndex,2):'100.00'],['Growth Indicator',economy?fixed(economy.growth*100,2):'100.00'],['Seasonal Indicator',economy?fixed(economy.seasonal*100,2):'100.00']])}</div>
       <div class="card">${cardHead('PRODUCT','Image & Quality')}${statsList([['Quality',fixed(user.quality,3)],['Image',fixed(user.image,3)],['Price',money(user.price)]])}</div>
-      <div class="card">${cardHead('OPERATIONS','Business Status')}${statsList([['Potential Demand',num(user.potentialDemand)],['Sales',num(user.sales)],['Market Share',pct(user.marketShare)],['FG Inventory',num(user.finishedGoods)],['Capacity',num(user.capacity)],['RM Inventory',num(user.rawMaterial)]])}</div>
+      <div class="card">${cardHead('OPERATIONS','Business Status')}${statsList([['Potential Demand',num(user.potentialDemand)],['Sales',num(user.sales)],['Market Share',pct(user.marketShare)],['FG Inventory',num(user.finishedGoods)],['Next Capacity',num(user.capacity)],['End RM / Next Beginning',num(user.rawMaterial)]])}</div>
+    </section>
+    <section class="triple-grid">
+      <div class="card">${cardHead('PRODUCTION LIMIT','Current Round Capacity','▦')}${statsList([['Beginning Capacity',num(latest.beginCapacity ?? user.capacity)],['Max w/ 50% Overtime',num(latest.maxProductionCapacity ?? user.capacity*1.5)],['Actual Production',num(user.production)]])}</div>
+      <div class="card">${cardHead('PROCUREMENT TIMING','Raw Material Flow','↻')}${statsList([['Beginning RM',num(latest.beginRawMaterial ?? user.rawMaterial)],['Procurement Delivered End-Round',num(latest.procurementDelivered ?? 0)],['Ending RM',num(user.rawMaterial)]])}</div>
+      <div class="card">${cardHead('EFFICIENCY','Maintenance Effect','◎')}${statsList([['Current Conversion Factor',fixed(latest.conversionFactor ?? user.conversionFactor,3)],['Next Conversion Factor',fixed(latest.nextConversionFactor ?? user.conversionFactor,3)],['Workbook Reference', '≈ 0.700']])}</div>
     </section>
     <div class="card">${cardHead('COMPETITIVE INTELLIGENCE','Sales Status','◎')}${competitionTable(state)}</div>`;
 }
 
 export function analysisView(state) {
   const user = state.companies.find(company => company.isUser);
+  const latest = user.history?.at(-1) || {};
   return `<div class="page-head"><div><div class="eyebrow">DIAGNOSIS</div><h1>Analysis</h1><p class="subtitle">Bukan hanya apa yang terjadi, tetapi mengapa.</p></div></div>
     <section class="dashboard-grid">
-      <div class="card">${cardHead('PRODUCTION & LOGISTICS','Supply Chain Diagnostic','▦')}${statsList([['Potential Demand',num(user.potentialDemand)],['Actual Sales',num(user.sales)],['Unserved Demand',num(Math.max(0,user.potentialDemand-user.sales))],['Production',num(user.production)],['Capacity Utilization',pct(user.production/Math.max(user.capacity,1))],['RM Inventory',num(user.rawMaterial)],['FG Inventory',num(user.finishedGoods)]])}</div>
+      <div class="card">${cardHead('PRODUCTION & LOGISTICS','Supply Chain Diagnostic','▦')}${statsList([['Potential Demand',num(user.potentialDemand)],['Actual Sales',num(user.sales)],['Unserved Demand',num(Math.max(0,user.potentialDemand-user.sales))],['Production',num(user.production)],['Beginning Capacity',num(latest.beginCapacity ?? user.capacity)],['Overtime Ceiling',num(latest.maxProductionCapacity ?? user.capacity*1.5)],['RM Beginning',num(latest.beginRawMaterial ?? user.rawMaterial)],['RM Ending',num(user.rawMaterial)],['FG Inventory',num(user.finishedGoods)]])}</div>
       <div class="card">${cardHead('COST STRUCTURE','Unit Economics','$')}${statsList([['Price / Unit',money(user.price)],['Total Cost / Unit',money(user.unitCost)],['Spread / Unit',money(user.price-user.unitCost),user.price-user.unitCost>=0?'good':'bad'],['Profit Margin',pct(user.profitMargin)],['ROE',pct(user.roe)],['Current Ratio',fixed(user.currentRatio,2)+'x']])}${diagnosticText(user)}</div>
     </section>`;
 }
@@ -272,6 +282,33 @@ export function historyView(state) {
   const user = state.companies.find(company => company.isUser);
   return `<div class="page-head"><div><div class="eyebrow">ROUND DATABASE</div><h1>Decision History</h1><p class="subtitle">Decision dan result untuk ronde yang sama disimpan pada baris yang sama.</p></div></div>
     <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>Round</th><th>Price</th><th>Marketing</th><th>R&D</th><th>Production</th><th>Sales</th><th>Revenue</th><th>Unit Cost</th><th>Net Profit</th><th>Δ Profit</th><th>NPV</th></tr></thead><tbody>${user.history.map((item,i)=>{const prev=user.history[i-1];const change=prev&&prev.netProfit?((item.netProfit-prev.netProfit)/Math.abs(prev.netProfit)):0;return `<tr><td>R${item.round}</td><td>${money(item.decision?.price||item.price)}</td><td>${money(item.decision?.marketing||0)}</td><td>${money(item.decision?.rd||0)}</td><td>${num(item.decision?.production||item.production)}</td><td>${num(item.sales)}</td><td>${money(item.revenue)}</td><td>${money(item.unitCost)}</td><td class="${item.netProfit>=0?'good':'bad'}">${money(item.netProfit)}</td><td class="${change>=0?'good':'bad'}">${i?pct(change):'—'}</td><td>${money(item.npv)}</td></tr>`}).join('')}</tbody></table></div></div>`;
+}
+
+
+function formatMatrixValue(key, value) {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) return '—';
+  if (key === 'share') return pct(Number(value));
+  if (['price','unitCost'].includes(key)) return money(Number(value));
+  if (['revenue','netProfit','cashExpenditure','cash','equity','marketing','rd','maintenance','equipment','dividend'].includes(key)) return money(Number(value));
+  if (['image','quality','conversionFactor','nextConversionFactor'].includes(key)) return fixed(Number(value), 3);
+  return num(Number(value));
+}
+
+export function matrixView(state) {
+  const matrices = decisionMatrices(state);
+  return `
+    <div class="page-head">
+      <div><div class="eyebrow">PDCA CONTROL SYSTEM</div><h1>Business Intelligence Decision Matrices</h1><p class="subtitle">Setiap matrix menghubungkan keputusan dengan outcome/KPI lintas ronde, sesuai struktur workbook.</p></div>
+    </div>
+    <div class="matrix-stack">
+      ${matrices.map(matrix=>`
+        <section class="card matrix-card">
+          ${cardHead('DECISION MATRIX', matrix.title, '▥')}
+          <p class="matrix-subtitle">${esc(matrix.subtitle)}</p>
+          <div class="table-wrap"><table><thead><tr>${matrix.columns.map(([,label])=>`<th>${esc(label)}</th>`).join('')}</tr></thead>
+          <tbody>${matrix.rows.map(row=>`<tr>${matrix.columns.map(([key])=>`<td>${key==='round'?'R'+row[key]:formatMatrixValue(key,row[key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        </section>`).join('')}
+    </div>`;
 }
 
 export function leaderboardView(state) {
@@ -381,6 +418,7 @@ export function bodyForTab(state, activeTab) {
     case 'analysis': return analysisView(state);
     case 'financials': return financialsView(state);
     case 'history': return historyView(state);
+    case 'matrix': return matrixView(state);
     case 'leaderboard': return leaderboardView(state);
     case 'scenarios': return scenariosView(state);
     case 'model': return modelView(state);

@@ -1,5 +1,5 @@
-export const STORAGE_KEY = 'mbs_practice_v04';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v05';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
@@ -11,6 +11,13 @@ export const BASE_MARKET_SIZE = 7_022_064;
 export const MATERIAL_PER_UNIT = 1.43;
 export const MATERIAL_PRICE = 1.15;
 export const DISCOUNT_RATE = 0.08;
+
+// Explicit workbook mechanics used by the v0.5 operations-fidelity layer.
+export const OVERTIME_LIMIT = 0.50;
+export const CAPACITY_AGING_RATE = 0.025;
+export const CAPACITY_COST_PER_UNIT = 20;
+export const TARGET_CONVERSION_FACTOR = 0.70;
+export const MAINTENANCE_REFERENCE = 280000;
 
 export const BOT_STRATEGIES = [
   ['PREMIUM', 'Premium'],

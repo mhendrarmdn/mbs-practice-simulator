@@ -1,4 +1,4 @@
-import { MATERIAL_PER_UNIT, R1_CALIBRATION, ROUND1_REFERENCE } from './config.js';
+import { MATERIAL_PER_UNIT, OVERTIME_LIMIT, R1_CALIBRATION, ROUND1_REFERENCE } from './config.js';
 import { userCompany } from './state.js';
 import { clamp } from './utils.js';
 
@@ -16,11 +16,18 @@ export function isReferenceDecision(decision = {}) {
 export function draftReadiness(state) {
   const user = userCompany(state);
   const d = state.draft || {};
-  const plannedProduction = Math.max(0, Math.min(Number(d.production || 0), Number(user.capacity || 0)));
+  const currentRawMaterial = Number(user.rawMaterial || 0);
+  const maxProduction = Number(user.capacity || 0) * (1 + OVERTIME_LIMIT);
+  const plannedProduction = Math.max(0, Math.min(
+    Number(d.production || 0),
+    maxProduction,
+    currentRawMaterial / MATERIAL_PER_UNIT
+  ));
   const availableFG = Number(user.finishedGoods || 0) + plannedProduction;
   const demand = Math.max(Number(user.potentialDemand || 0), 1);
   const demandCoverage = availableFG / demand;
-  const rmAfter = Number(user.rawMaterial || 0) + Number(d.materialPurchase || 0) - plannedProduction * MATERIAL_PER_UNIT;
+  // Current procurement arrives at end-of-round: it does not support current production.
+  const rmAfter = currentRawMaterial - plannedProduction * MATERIAL_PER_UNIT + Number(d.materialPurchase || 0);
   const spend = Number(d.marketing || 0) + Number(d.rd || 0) + Number(d.equipment || 0) + Number(d.maintenance || 0) + Number(d.dividend || 0);
   const checks = [];
   let score = 100;
@@ -45,11 +52,11 @@ export function draftReadiness(state) {
   }
 
   if (rmAfter < 0) {
-    add('danger', 'Raw material tidak cukup', 'Production request tidak didukung material yang tersedia + purchase.', 24);
+    add('danger', 'Raw material tidak cukup untuk current production', 'Procurement ronde ini baru tiba di akhir ronde, jadi tidak dapat menutup shortage produksi sekarang.', 24);
   } else if (rmAfter > Math.max(plannedProduction * MATERIAL_PER_UNIT * 2.2, 1200000)) {
     add('warning', 'Raw material berlebih', 'Working capital berpotensi terlalu banyak tertahan di raw material.', 10);
   } else {
-    checks.push({ severity: 'good', title: 'Raw material coverage wajar', detail: 'Material plan masih dalam rentang latihan yang relatif terkendali.' });
+    checks.push({ severity: 'good', title: 'Raw material coverage wajar', detail: 'Current RM mendukung production; procurement saat ini menjadi buffer akhir ronde / awal ronde berikutnya.' });
   }
 
   if (Number(d.dividend || 0) > 0 && (Number(user.overdraft || 0) > 0 || Number(user.netProfit || 0) < 0)) {
