@@ -34,10 +34,10 @@ function roundTabs(state, round) {
   const resultMax = state.mode === 'workbook' ? 5 : Number(state.maxRounds || 4);
   const resultTabs = Array.from({ length: resultMax + 1 }, (_, r) => {
     const enabled = completed.has(r);
-    return `<button type="button" data-round-tab="${r}" class="${r===round?'active':''}" ${enabled?'':'disabled'}>R${r}</button>`;
+    return `<button type="button" data-round-tab="${r}" class="${r===round?'active':''}" ${enabled?'':'disabled'} title="${enabled ? 'Lihat hasil Round '+r : 'Belum dimainkan'}">R${r}</button>`;
   }).join('');
   const planTab = state.mode === 'workbook'
-    ? `<button type="button" class="plan-tab" disabled>R6 Plan</button>`
+    ? `<button type="button" class="plan-tab" disabled title="R6 adalah planning-only; tidak menghasilkan simulated result.">R6 Plan</button>`
     : '';
   return `<div class="tb-round-tabs" role="tablist" aria-label="Round selector">${resultTabs}${planTab}</div>`;
 }
@@ -284,25 +284,51 @@ export function businessStatusView(state, requestedRound) {
 
 export function productImageView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
-  const rows=state.companies.map((company,idx)=>{
+  const pointsData=state.companies.map(company=>{
     const s=snapshotFor(company,round);
-    return [
-      {html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},
-      {html:fixed(s.quality,3)},
-      {html:fixed(s.image,3)},
-      {html:money(s.price)}
-    ];
+    return { company, quality:Number(s.quality||0), image:Number(s.image||0), price:Number(s.price||0) };
   });
-  const points=state.companies.map((company,idx)=>{
-    const s=snapshotFor(company,round);
-    const x=8+(Number(s.quality||0)*84);
-    const y=92-(Number(s.image||0)*84);
-    const color=company.isUser ? '#1f5f99' : '#aeb9c5';
-    return `<g><circle cx="${x}" cy="${y}" r="${company.isUser?3.1:2}" fill="${color}"/><text x="${x+2.5}" y="${y-2}" class="tb-scatter-label">${esc(company.name)}</text></g>`;
+  const rows=pointsData.map(({company,quality,image,price})=>[
+    {html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},
+    {html:fixed(quality,3)},
+    {html:fixed(image,3)},
+    {html:money(price)}
+  ]);
+
+  const qualities=pointsData.map(p=>p.quality);
+  const images=pointsData.map(p=>p.image);
+  const qRawMin=Math.min(...qualities), qRawMax=Math.max(...qualities);
+  const iRawMin=Math.min(...images), iRawMax=Math.max(...images);
+  const qPad=Math.max((qRawMax-qRawMin)*.14,.025);
+  const iPad=Math.max((iRawMax-iRawMin)*.14,.025);
+  const qMin=Math.max(0,qRawMin-qPad), qMax=Math.min(1,qRawMax+qPad);
+  const iMin=Math.max(0,iRawMin-iPad), iMax=Math.min(1,iRawMax+iPad);
+  const qSpan=Math.max(qMax-qMin,.01), iSpan=Math.max(iMax-iMin,.01);
+  const qAvg=qualities.reduce((a,b)=>a+b,0)/Math.max(qualities.length,1);
+  const iAvg=images.reduce((a,b)=>a+b,0)/Math.max(images.length,1);
+
+  const width=720,height=360,left=64,right=22,top=24,bottom=48;
+  const plotW=width-left-right, plotH=height-top-bottom;
+  const mapX=q=>left+((q-qMin)/qSpan)*plotW;
+  const mapY=i=>top+(1-((i-iMin)/iSpan))*plotH;
+  const ticks=Array.from({length:5},(_,idx)=>idx/4);
+  const xTicks=ticks.map(t=>{
+    const value=qMin+t*qSpan, x=left+t*plotW;
+    return `<g><line x1="${x}" y1="${top}" x2="${x}" y2="${height-bottom}" class="tb-scatter-grid"/><text x="${x}" y="${height-22}" text-anchor="middle" class="tb-scatter-tick">${fixed(value,2)}</text></g>`;
   }).join('');
-  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 100 100"><line x1="8" y1="92" x2="95" y2="92"/><line x1="8" y1="92" x2="8" y2="5"/>${points}<text x="50" y="99" class="tb-scatter-axis">Quality →</text><text x="1" y="50" class="tb-scatter-axis" transform="rotate(-90 1 50)">Image →</text></svg></div>`;
-  return page('Product Image','Competitive positioning using the quality and image variables available in the simulator.',state,round,
-    `<div class="tb-two-col">${panel('Quality / Image Positioning',scatter)}${panel('Company Position',dataTable(['Company','Quality','Image','Price'],rows))}</div>`
+  const yTicks=ticks.map(t=>{
+    const value=iMax-t*iSpan, y=top+t*plotH;
+    return `<g><line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}" class="tb-scatter-grid"/><text x="${left-10}" y="${y+4}" text-anchor="end" class="tb-scatter-tick">${fixed(value,2)}</text></g>`;
+  }).join('');
+  const avgX=mapX(qAvg), avgY=mapY(iAvg);
+  const plotted=pointsData.map(({company,quality,image,price})=>{
+    const x=mapX(quality),y=mapY(image);
+    const color=company.isUser?'#1f5f99':'#aeb9c5';
+    return `<g class="${company.isUser?'user-point':'competitor-point'}"><title>${esc(company.name)} · Quality ${fixed(quality,3)} · Image ${fixed(image,3)} · Price ${money(price)}</title><circle cx="${x}" cy="${y}" r="${company.isUser?7:5}" fill="${color}" stroke="${company.isUser?'#163f66':'#fff'}" stroke-width="${company.isUser?2:1.5}"/>${company.isUser?`<text x="${x+10}" y="${y-10}" class="tb-scatter-user-label">${esc(company.name)}</text>`:''}</g>`;
+  }).join('');
+  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 ${width} ${height}">${xTicks}${yTicks}<line x1="${avgX}" y1="${top}" x2="${avgX}" y2="${height-bottom}" class="tb-scatter-average"/><line x1="${left}" y1="${avgY}" x2="${width-right}" y2="${avgY}" class="tb-scatter-average"/><line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="tb-scatter-axis-line"/><line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="tb-scatter-axis-line"/>${plotted}<text x="${left+plotW/2}" y="${height-4}" text-anchor="middle" class="tb-scatter-axis-label">Quality</text><text x="15" y="${top+plotH/2}" text-anchor="middle" class="tb-scatter-axis-label" transform="rotate(-90 15 ${top+plotH/2})">Image</text><text x="${avgX+6}" y="${top+14}" class="tb-scatter-average-label">Market avg quality</text><text x="${width-right-4}" y="${avgY-6}" text-anchor="end" class="tb-scatter-average-label">Market avg image</text></svg><div class="tb-scatter-help">MARKOWITZ diberi label langsung. Arahkan cursor ke titik lain untuk melihat detail competitor.</div></div>`;
+  return page('Product Image','Competitive positioning using auto-scaled quality and image axes for the selected round.',state,round,
+    `<div class="tb-two-col product-image-layout">${panel('Quality / Image Positioning',scatter)}${panel('Company Position',dataTable(['Company','Quality','Image','Price'],rows))}</div>`
   );
 }
 
@@ -331,16 +357,16 @@ export function revenueStatusView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
   const rounds=availableRounds(state);
   const company=userCompany(state);
-  const series=[
-    {name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true},
-    {name:'Net profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0)}
-  ];
+  const current=snapshotFor(company,round);
   const rows=state.companies.map(c=>{
     const s=snapshotFor(c,round);
     return [{html:`<span class="${c.isUser?'tb-user-dot':''}">${esc(c.name)}</span>`},{html:money(s.revenue)},{html:num(s.sales)},{html:money(s.netProfit),className:s.netProfit>=0?'good':'bad'}];
   });
+  const trend = rounds.length < 2
+    ? panel('Revenue / Profit Snapshot',`<div class="tb-single-finance-grid"><div><span>Revenue R${round}</span><strong>${money(current.revenue)}</strong></div><div><span>Net Profit R${round}</span><strong class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</strong></div></div>`)
+    : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true}))}</div>`;
   return page('Revenue / Sales Status','Revenue, sales volume, and profitability by company and across rounds.',state,round,
-    `${panel('Revenue and Profit Trend',lineChart(series,rounds,v=>money(v)))}${panel('Company Revenue Status',dataTable(['Company','Revenue','Sales','Net Profit'],rows))}`
+    `${trend}${panel('Company Revenue Status',dataTable(['Company','Revenue','Sales','Net Profit'],rows))}`
   );
 }
 
@@ -348,17 +374,24 @@ export function salesTrendView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
   const rounds=availableRounds(state);
   const c=userCompany(state);
-  const series=[
-    {name:'Potential demand',values:rounds.map(r=>snapshotFor(c,r).potentialDemand||0)},
-    {name:'Sales',values:rounds.map(r=>snapshotFor(c,r).sales||0),highlight:true},
-    {name:'Production',values:rounds.map(r=>snapshotFor(c,r).production||0)}
-  ];
+  const current=snapshotFor(c,round);
   const rows=rounds.map(r=>{
     const s=snapshotFor(c,r);
     return [{text:'R'+r},{html:num(s.potentialDemand)},{html:num(s.sales)},{html:num(s.production)},{html:pct(s.marketShare)}];
   });
+  const visual = rounds.length < 2
+    ? panel('R0 Operating Snapshot',barChart([
+        {label:'Potential demand',value:current.potentialDemand||0},
+        {label:'Sales',value:current.sales||0},
+        {label:'Production',value:current.production||0}
+      ],v=>num(v)))
+    : panel('Demand / Sales / Production',lineChart([
+        {name:'Potential demand',values:rounds.map(r=>snapshotFor(c,r).potentialDemand||0)},
+        {name:'Sales',values:rounds.map(r=>snapshotFor(c,r).sales||0),highlight:true},
+        {name:'Production',values:rounds.map(r=>snapshotFor(c,r).production||0)}
+      ],rounds,v=>num(v),{pointLabels:true}));
   return page('Sales Trend','Demand, sales, production, and share movement across completed rounds.',state,round,
-    `${panel('Demand / Sales / Production',lineChart(series,rounds,v=>num(v)))}${panel('Round Data',dataTable(['Round','Demand','Sales','Production','Share'],rows))}`
+    `${visual}${panel('Round Data',dataTable(['Round','Demand','Sales','Production','Share'],rows))}`
   );
 }
 

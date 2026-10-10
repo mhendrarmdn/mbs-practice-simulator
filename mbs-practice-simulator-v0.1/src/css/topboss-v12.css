@@ -1393,3 +1393,276 @@ body{
   }
   .round-pill{display:none}
 }
+
+
+/* v1.2.4 — chart, decision form, and navigation polish */
+
+/* Keep long navigation usable without the footer covering final items. */
+.nav{
+  padding-bottom:64px!important;
+  scroll-padding-block:28px 88px!important;
+}
+.sidebar-bottom{
+  position:relative!important;
+  z-index:2!important;
+  flex:none!important;
+}
+
+/* Future rounds are visibly unavailable, not merely pale. */
+.tb-round-tabs button:disabled{
+  opacity:.48!important;
+  background:#f0f3f6!important;
+  color:#8796a5!important;
+  border-color:transparent!important;
+}
+.tb-round-tabs button:disabled:hover{
+  background:#f0f3f6!important;
+}
+
+/* Chart typography stays in the same sans family as the application. */
+.tb-axis-label,
+.tb-point-label,
+.tb-chart-legend,
+.tb-scatter-tick,
+.tb-scatter-axis-label,
+.tb-scatter-average-label,
+.tb-scatter-user-label{
+  font-family:'IBM Plex Sans',sans-serif!important;
+}
+.tb-axis-label{
+  font-size:11px!important;
+  font-weight:500!important;
+  fill:#5f7284!important;
+}
+.tb-chart-legend{
+  font-size:11px!important;
+}
+.tb-point-label{
+  font-size:10px!important;
+}
+
+/* Product Image: auto-scaled plot with useful market quadrants. */
+.product-image-layout{
+  grid-template-columns:minmax(0,1.15fr) minmax(420px,.85fr)!important;
+}
+.tb-scatter{
+  min-height:420px!important;
+}
+.tb-scatter svg{
+  width:100%!important;
+  height:390px!important;
+  overflow:visible!important;
+}
+.tb-scatter-grid{
+  stroke:#e6ebef;
+  stroke-width:1;
+}
+.tb-scatter-axis-line{
+  stroke:#71869a;
+  stroke-width:1.2;
+}
+.tb-scatter-average{
+  stroke:#d3a72b;
+  stroke-width:1.2;
+  stroke-dasharray:6 5;
+}
+.tb-scatter-tick{
+  fill:#65788a;
+  font-size:11px;
+}
+.tb-scatter-axis-label{
+  fill:#50677b;
+  font-size:12px;
+  font-weight:600;
+}
+.tb-scatter-average-label{
+  fill:#9b7413;
+  font-size:9px;
+  font-weight:600;
+}
+.tb-scatter-user-label{
+  fill:#1f5f99;
+  font-size:12px;
+  font-weight:800;
+  paint-order:stroke;
+  stroke:#fff;
+  stroke-width:4px;
+  stroke-linejoin:round;
+}
+.tb-scatter-help{
+  padding:6px 2px 2px;
+  color:#738496;
+  font-size:10px;
+}
+
+/* Single-round Revenue/Profit avoids forcing unlike scales onto one axis. */
+.tb-single-finance-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  min-height:180px;
+  align-items:stretch;
+}
+.tb-single-finance-grid>div{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  min-height:170px;
+  border:1px solid #dce4eb;
+  background:#fafcfd;
+}
+.tb-single-finance-grid span{
+  color:#6c7e90;
+  font-size:11px;
+}
+.tb-single-finance-grid strong{
+  margin-top:8px;
+  color:#245b91;
+  font-size:28px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Decision form: editable fields should look editable and format consistently. */
+.decision-layout{
+  grid-template-columns:minmax(0,1.5fr) minmax(330px,.72fr)!important;
+  align-items:start!important;
+}
+.decision-layout>.card{
+  min-width:0;
+}
+.decision-layout .side-stack{
+  align-content:start!important;
+}
+.field label{
+  margin-bottom:7px!important;
+}
+.field label span:first-child{
+  font-size:11px!important;
+  color:#203b54!important;
+}
+.field-input-wrap{
+  display:flex;
+  align-items:center;
+  min-height:48px;
+  width:100%;
+  border:1px solid #bfcdda;
+  border-radius:8px;
+  background:#fff;
+  overflow:hidden;
+  transition:border-color .12s ease, box-shadow .12s ease;
+}
+.field-input-wrap:focus-within{
+  border-color:#2b6ca3;
+  box-shadow:0 0 0 3px rgba(43,108,163,.12);
+}
+.field-input-wrap.is-disabled{
+  background:#f0f3f6;
+  opacity:.68;
+}
+.field-input-wrap input{
+  flex:1;
+  width:100%;
+  min-width:0;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:#fff!important;
+  color:#173553!important;
+  padding:11px 9px!important;
+  font:600 15px 'IBM Plex Sans',sans-serif!important;
+  font-variant-numeric:tabular-nums;
+}
+.field-input-wrap.is-disabled input{
+  background:#f0f3f6!important;
+}
+.field-affix{
+  flex:none;
+  color:#60758a;
+  font:600 10px 'IBM Plex Sans',sans-serif;
+  background:#f7f9fb;
+  align-self:stretch;
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+}
+.field-affix.prefix{
+  border-right:1px solid #d7e0e8;
+}
+.field-affix.suffix{
+  border-left:1px solid #d7e0e8;
+}
+.decision-action-help{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:11px;
+}
+.decision-action-help span{
+  padding:8px 9px;
+  border:1px solid #dce4eb;
+  border-radius:5px;
+  background:#fafcfd;
+  color:#697c8e;
+  font-size:9px;
+  line-height:1.4;
+}
+.decision-action-help b{
+  color:#315b7d;
+}
+.decision-operating-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid #dce4eb;
+}
+.decision-operating-grid>div{
+  padding:9px 10px;
+  border:1px solid #dce4eb;
+  border-radius:5px;
+  background:#f9fbfc;
+}
+.decision-operating-grid span{
+  display:block;
+  color:#718396;
+  font-size:9px;
+}
+.decision-operating-grid strong{
+  display:block;
+  margin-top:4px;
+  color:#243f57;
+  font:700 12px 'IBM Plex Sans',sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Buttons communicate the difference between temporary edit freeze and actual submit. */
+.decision-layout .actions .primary{
+  background:#f2bd2e!important;
+  color:#172033!important;
+  border-color:#d4a20d!important;
+}
+.page-head>button[data-action="toggle-lock"]{
+  white-space:nowrap;
+}
+
+/* Keep result tables readable. */
+.tb-table td.bad,
+.tb-table td.good{
+  font-weight:700!important;
+}
+
+@media(max-width:1180px){
+  .product-image-layout{grid-template-columns:1fr!important}
+  .decision-layout{grid-template-columns:1fr!important}
+}
+@media(max-width:760px){
+  .decision-action-help,
+  .decision-operating-grid,
+  .tb-single-finance-grid{
+    grid-template-columns:1fr!important;
+  }
+}

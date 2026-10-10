@@ -187,8 +187,18 @@ function startTimer() {
 
 function render(restartTimer = true) {
   state.timerRemaining = timerRemaining();
+  const navScrollTop = root.querySelector('.nav')?.scrollTop ?? 0;
+  const sidebarScrollTop = root.querySelector('.sidebar')?.scrollTop ?? 0;
+
   root.innerHTML = shell(state, activeTab, getThemePreference(), { sidebarCollapsed });
   document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric });
+
+  const nav = root.querySelector('.nav');
+  const sidebar = root.querySelector('.sidebar');
+  if (nav) nav.scrollTop = navScrollTop;
+  if (sidebar) sidebar.scrollTop = sidebarScrollTop;
+  root.querySelector('.nav button.active')?.scrollIntoView({ block: 'nearest' });
+
   bindEvents();
   if (restartTimer) startTimer();
 }
@@ -302,12 +312,26 @@ function bindEvents() {
   });
 
   document.querySelectorAll('[data-decision]').forEach(input => {
+    const parseDecisionValue = () => Number(String(input.value).replace(/,/g, '').trim()) || 0;
+    input.addEventListener('focus', () => {
+      if (state.decisionLocked) return;
+      input.value = String(parseDecisionValue());
+      if (input.dataset.decision === 'price') input.value = Number(input.value).toFixed(2);
+      input.select?.();
+    });
     input.addEventListener('input', () => {
       if (state.decisionLocked) return;
       const field = input.dataset.decision;
-      const value = Number(input.value);
+      const value = parseDecisionValue();
       state.draft[field] = value;
       queueDraftPatch(field, value);
+    });
+    input.addEventListener('blur', () => {
+      const field = input.dataset.decision;
+      const value = Number(state.draft[field] || 0);
+      input.value = field === 'price'
+        ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : Math.round(value).toLocaleString('en-US');
     });
   });
 
