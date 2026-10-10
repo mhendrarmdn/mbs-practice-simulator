@@ -100,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.3</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.4</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -229,7 +229,21 @@ export function dashboardView(state) {
 }
 
 function field(label, key, value, step, unit, disabled) {
-  return `<div class="field"><label><span>${label}</span><span>${unit}</span></label><input type="number" data-decision="${key}" value="${Number(value).toFixed(key === 'price' ? 2 : 0)}" min="0" step="${step}" ${disabled ? 'disabled' : ''}></div>`;
+  const number = Number(value || 0);
+  const formatted = key === 'price'
+    ? number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : Math.round(number).toLocaleString('en-US');
+  const currency = String.fromCharCode(36);
+  const prefix = unit.includes(currency) ? currency : '';
+  const suffix = unit === currency + ' / unit' ? '/ unit' : unit === 'units' ? 'units' : '';
+  return `<div class="field">
+    <label><span>${label}</span></label>
+    <div class="field-input-wrap ${disabled ? 'is-disabled' : ''}">
+      ${prefix ? `<span class="field-affix prefix">${prefix}</span>` : ''}
+      <input type="text" inputmode="decimal" autocomplete="off" data-decision="${key}" data-step="${step}" value="${formatted}" ${disabled ? 'disabled' : ''}>
+      ${suffix ? `<span class="field-affix suffix">${suffix}</span>` : ''}
+    </div>
+  </div>`;
 }
 
 
@@ -556,7 +570,7 @@ export function decisionsView(state) {
   return `
     <div class="page-head">
       <div><div class="eyebrow">${workbookPlanning ? 'ROUND 6 — PLAN ONLY' : 'ROUND '+Math.min(state.currentRound + 1, state.maxRounds)}</div><h1>${workbookPlanning ? 'Round 6 Business Plan' : 'Business Decisions'}</h1><p class="subtitle">${workbookPlanning ? 'Workbook planning stage: isi delapan keputusan berdasarkan review R0–R5. Plan ini tidak akan disimulasikan.' : 'Semua anggota room dapat mengubah shared draft. Hanya Captain yang dapat lock dan submit ronde.'}</p></div>
-      <button class="secondary" data-action="toggle-lock" ${!captain ? 'disabled' : ''}>▣ ${locked ? 'Unlock Draft' : 'Lock Draft'}</button>
+      <button class="secondary" data-action="toggle-lock" title="Freeze editing tanpa submit. Gunakan Submit Round untuk menjalankan simulasi." ${!captain ? 'disabled' : ''}>▣ ${locked ? 'Resume Editing' : 'Freeze Editing'}</button>
     </div>
     ${locked ? `<div class="event"><span>▣</span><div><strong>Draft locked</strong><span class="event-copy">${esc(state.lockReason || 'Manual lock')}</span></div></div>` : ''}
     <section class="decision-layout">
@@ -573,8 +587,21 @@ export function decisionsView(state) {
           ${field('Dividend', 'dividend', d.dividend, '10000', '$', locked)}
         </div>
         <div class="actions" style="margin-top:16px">
-          <button class="primary" data-action="${workbookPlanning ? 'finalize-workbook-plan' : 'submit-round'}" ${complete || !captain || (locked && !workbookPlanning) || (workbookPlanning && state.workbookPlan) ? 'disabled' : ''}>▣ ${workbookPlanning ? (state.workbookPlan ? 'R6 PLAN FINALIZED' : 'Finalize R6 Business Plan') : complete ? 'GAME COMPLETE' : captain ? 'Lock & Submit Round' : 'Captain Submits Round'}</button>
-          <button class="secondary" data-action="load-r1">Load R1 Reference</button>
+          <button class="primary" data-action="${workbookPlanning ? 'finalize-workbook-plan' : 'submit-round'}" ${complete || !captain || (locked && !workbookPlanning) || (workbookPlanning && state.workbookPlan) ? 'disabled' : ''}>▣ ${workbookPlanning ? (state.workbookPlan ? 'R6 PLAN FINALIZED' : 'Finalize R6 Business Plan') : complete ? 'GAME COMPLETE' : captain ? 'Submit Round' : 'Captain Submits Round'}</button>
+          <button class="secondary" data-action="load-r1" title="Memuat keputusan referensi R1 dari workbook/observed anchor ke draft saat ini.">Load R1 Reference</button>
+        </div>
+        <div class="decision-action-help">
+          <span><b>Freeze Editing</b> hanya menghentikan perubahan draft; tidak menjalankan simulasi.</span>
+          <span><b>Submit Round</b> menjalankan keputusan ronde.</span>
+          <span><b>Load R1 Reference</b> menyalin keputusan referensi R1 ke draft untuk latihan/kalibrasi.</span>
+        </div>
+        <div class="decision-operating-grid">
+          <div><span>Potential Demand</span><strong>${num(user.potentialDemand)}</strong></div>
+          <div><span>Sales</span><strong>${num(user.sales)}</strong></div>
+          <div><span>Finished Goods</span><strong>${num(user.finishedGoods)}</strong></div>
+          <div><span>Capacity</span><strong>${num(user.capacity)}</strong></div>
+          <div><span>Raw Material</span><strong>${num(user.rawMaterial)}</strong></div>
+          <div><span>Cash</span><strong>${money(user.cash)}</strong></div>
         </div>
         ${state.roomCode && !captain ? '<div class="callout">Member mode: kamu bisa mengedit shared draft secara live, tetapi perubahan mode, lock, scenario, reset, dan submit tetap dikendalikan Captain.</div>' : ''}
       </div>
@@ -585,18 +612,6 @@ export function decisionsView(state) {
           <div class="readiness-score"><strong>${readiness.score}</strong><span>/100</span><em>${readiness.score >= 80 ? 'READY' : readiness.score >= 60 ? 'REVIEW' : 'HIGH RISK'}</em></div>
           <div class="readiness-list">${readiness.checks.map(item=>`<div class="readiness-item ${item.severity}"><b>${item.severity === 'good' ? '✓' : item.severity === 'warning' ? '△' : '!'}</b><div><strong>${esc(item.title)}</strong><span>${esc(item.detail)}</span></div></div>`).join('')}</div>
         </div>
-        <div class="card">
-          ${cardHead('OPERATING POSITION', 'Before Submit', '▦')}
-          ${statsList([
-            ['Potential Demand', num(user.potentialDemand)],
-            ['Sales', num(user.sales)],
-            ['Finished Goods', num(user.finishedGoods)],
-            ['Capacity', num(user.capacity)],
-            ['Raw Material', num(user.rawMaterial)],
-            ['Cash', money(user.cash)]
-          ])}
-        </div>
-
         <div class="card sensitivity-card">
           ${cardHead('SENSITIVITY LAB', 'What-if Preview', '◎')}
           <div class="sensitivity-controls">

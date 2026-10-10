@@ -1,33 +1,42 @@
 # Changelog
 
-## v1.2.3 — Round Sync & Dashboard Readability
+## v1.2.4 — Chart, Form & Sidebar Reliability
 
-### Round synchronization
-- Fixes the dashboard defaulting to R0 after a newer round result already exists.
-- Parity pages now default to the latest completed result unless the user explicitly selects an older round.
-- This also activates the Δ vs prior column automatically after R1 and later results.
+### Navigation reliability
+- Preserves sidebar/navigation scroll position across full application rerenders.
+- Keeps the newly active menu item visible with nearest-scroll behavior.
+- Adds extra navigation bottom padding so Performance / Practice Tools items do not feel covered by the Training Model footer.
 
-### Revenue Trend
-- Adds point-value labels to each completed Revenue round.
-- Adds a compact Net Profit companion strip under the Revenue chart.
-- Keeps the R0-only placeholder behavior until a second completed round exists.
+### Product Image
+- Auto-scales Quality and Image axes to the actual competitor range instead of anchoring at zero.
+- Adds numeric axis ticks and market-average quadrant lines.
+- Labels MARKOWITZ directly while competitor detail is available through native hover tooltips.
+- Expands the useful plot area.
 
-### Header
-- Rebuilds the left side of the topbar as a true flex row.
-- Raises the desktop header to 70px and vertically centers the hamburger and team name.
-- Moves the current round into a high-contrast pill instead of a low-contrast line under the team name.
+### Trend charts
+- Revenue / Sales Status no longer plots Revenue and Net Profit on one misleading shared scale.
+- With only R0, Revenue and Profit are shown as separate snapshot metrics.
+- From two completed rounds onward, Revenue and Net Profit get separate trend charts.
+- Sales Trend uses grouped operating bars at R0 and switches to a line chart only from two rounds onward.
+- Future round tabs include “Belum dimainkan” tooltips and a visibly disabled treatment.
 
-### Dashboard readability
-- KPI sub-labels are larger and darker.
-- Rank notes use semantic green / amber / red coloring.
-- Practice NPV is emphasized in Business Summary.
-- Chart axis labels, legends, and point labels use stronger contrast and larger text.
+### Business Decisions
+- Decision inputs use consistent US-style number formatting: 6.40 and 1,550,000.
+- Units are moved into readable input prefixes/suffixes.
+- Editable fields use a white background and stronger border.
+- “Lock Draft” is renamed to “Freeze Editing” and separated conceptually from “Submit Round”.
+- Adds short explanations for Freeze Editing, Submit Round, and Load R1 Reference.
+- Moves Operating Position into a compact strip below the decision form to reduce the lopsided two-column layout.
 
-### Sidebar density
-- Slightly reduces navigation spacing so more Analysis / Performance items fit before scrolling.
+### Typography
+- Chart axes and legends use the same sans-serif family as the application with improved size and contrast.
 
 ### Database
 - No Supabase schema migration required.
+
+## v1.2.3 — Round Sync & Dashboard Readability
+
+Latest-round synchronization, dashboard deltas, header round pill, and chart readability improvements.
 
 ## v1.2.2 — Parity Trust & UI Polish
 
