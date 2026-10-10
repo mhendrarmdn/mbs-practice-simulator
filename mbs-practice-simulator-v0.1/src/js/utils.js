@@ -1,5 +1,5 @@
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-export const money = n => '$' + Math.round(n || 0).toLocaleString('en-US');
+export const money = n => { const v = Number(n || 0); return '$' + (Math.abs(v) < 100 ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(v).toLocaleString('en-US')); };
 export const num = n => Math.round(n || 0).toLocaleString('en-US');
 export const pct = n => ((n || 0) * 100).toFixed(2) + '%';
 export const fixed = (n, d = 2) => Number(n || 0).toFixed(d);
