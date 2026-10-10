@@ -65,29 +65,56 @@ function dataTable(headers, rows, classes='') {
   return `<div class="tb-table-wrap"><table class="tb-table ${classes}"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td class="${cell?.className||''}">${cell?.html ?? esc(cell?.text ?? cell ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
+function niceStep(raw) {
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  const power = Math.pow(10, Math.floor(Math.log10(raw)));
+  const fraction = raw / power;
+  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;
+  return nice * power;
+}
+
 function lineChart(series, rounds, valueFormat = value => num(value), options = {}) {
-  const width=720, height=230, padTop=24, padBottom=28, padLeft=82, padRight=24;
-  const values=series.flatMap(s=>s.values).filter(Number.isFinite);
-  const min=Math.min(...values,0), max=Math.max(...values,1), span=Math.max(max-min,1);
+  const width=720, height=230, padTop=28, padBottom=30, padLeft=88, padRight=28;
+  const values=series.flatMap(s=>s.values).map(Number).filter(Number.isFinite);
+  const dataMin=Math.min(...values,0), dataMax=Math.max(...values,0);
+  const step=Number(options.tickStep)||niceStep(Math.max(dataMax-dataMin,1)/4);
+  let min=Math.floor(dataMin/step)*step;
+  let max=Math.ceil(dataMax/step)*step;
+  if (min===max) max=min+step;
+  const ticks=[];
+  for(let v=min;v<=max+step*.1;v+=step) ticks.push(Math.abs(v)<step*1e-8?0:v);
+  const span=Math.max(max-min,1);
   const x=i=>padLeft+(rounds.length<=1?0:i*(width-padLeft-padRight)/(rounds.length-1));
   const y=v=>height-padBottom-((v-min)/span)*(height-padTop-padBottom);
-  const grid=[0,.25,.5,.75,1].map(frac=>{
-    const yy=padTop+frac*(height-padTop-padBottom);
-    const val=max-frac*span;
-    return `<g><line x1="${padLeft}" y1="${yy}" x2="${width-padRight}" y2="${yy}" class="tb-grid-line"/><text x="4" y="${yy+3}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
+  const grid=ticks.map(val=>{
+    const yy=y(val);
+    const zero=Math.abs(val)<step*1e-8;
+    return `<g><line x1="${padLeft}" y1="${yy}" x2="${width-padRight}" y2="${yy}" class="${zero&&options.zeroLine?'tb-zero-line':'tb-grid-line'}"/><text x="4" y="${yy+4}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
   }).join('');
+  const negativeArea = options.negativeArea && min < 0
+    ? `<rect x="${padLeft}" y="${y(0)}" width="${width-padLeft-padRight}" height="${Math.max(0,height-padBottom-y(0))}" class="tb-negative-zone"/>`
+    : '';
   const paths=series.map((s,idx)=>{
-    const color=PALETTE[idx%PALETTE.length];
-    const pts=s.values.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
-    const dots=s.values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="${s.highlight?3.1:2.5}" fill="${color}" />`).join('');
-    const pointLabels=options.pointLabels
-      ? s.values.map((v,i)=>`<text x="${x(i)}" y="${Math.max(12,y(v)-9)}" text-anchor="middle" class="tb-point-label">${esc(valueFormat(v))}</text>`).join('')
-      : '';
-    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>${dots}${pointLabels}`;
+    const color=s.color||PALETTE[idx%PALETTE.length];
+    const pts=s.values.map((v,i)=>`${x(i)},${y(Number(v)||0)}`).join(' ');
+    const dots=s.values.map((v,i)=>{
+      const vv=Number(v)||0;
+      return `<circle cx="${x(i)}" cy="${y(vv)}" r="${s.highlight?3.5:3}" fill="${color}"><title>${esc(s.name)} · R${rounds[i]} · ${esc(valueFormat(vv))}</title></circle>`;
+    }).join('');
+    const labelMode=options.labelMode || (options.pointLabels ? 'all' : 'none');
+    const offsets=[-12,-4,14,22];
+    const pointLabels=s.values.map((v,i)=>{
+      const show=labelMode==='all' || (labelMode==='last' && i===s.values.length-1);
+      if(!show) return '';
+      const vv=Number(v)||0;
+      const offset=labelMode==='last' ? (offsets[idx]??-10) : -10;
+      return `<text x="${x(i)}" y="${Math.max(13,Math.min(height-padBottom-4,y(vv)+offset))}" text-anchor="middle" class="tb-point-label">${esc(valueFormat(vv))}</text>`;
+    }).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:2}" opacity="${s.highlight?1:.82}"/>${dots}${pointLabels}`;
   }).join('');
   const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-7}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
-  const legend=series.map((s,idx)=>`<span><i style="background:${PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('');
-  return `<div class="tb-chart"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${grid}${paths}${labels}</svg><div class="tb-chart-legend">${legend}</div></div>`;
+  const legend=options.hideLegend ? '' : `<div class="tb-chart-legend">${series.map((s,idx)=>`<span><i style="background:${s.color||PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+  return `<div class="tb-chart"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${negativeArea}${grid}${paths}${labels}</svg>${legend}</div>`;
 }
 
 function barChart(items, formatter = value => num(value)) {
@@ -284,51 +311,62 @@ export function businessStatusView(state, requestedRound) {
 
 export function productImageView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
-  const pointsData=state.companies.map(company=>{
+  const pointsData=state.companies.map((company,index)=>{
     const s=snapshotFor(company,round);
-    return { company, quality:Number(s.quality||0), image:Number(s.image||0), price:Number(s.price||0) };
+    return { index:index+1, company, quality:Number(s.quality||0), image:Number(s.image||0), price:Number(s.price||0) };
   });
-  const rows=pointsData.map(({company,quality,image,price})=>[
+  const qualities=pointsData.map(p=>p.quality);
+  const images=pointsData.map(p=>p.image);
+  const qAvg=qualities.reduce((a,b)=>a+b,0)/Math.max(qualities.length,1);
+  const iAvg=images.reduce((a,b)=>a+b,0)/Math.max(images.length,1);
+  const qRawMin=Math.min(...qualities), qRawMax=Math.max(...qualities);
+  const iRawMin=Math.min(...images), iRawMax=Math.max(...images);
+  const qStep=.10;
+  const qMin=Math.max(0,Math.floor(qRawMin/qStep)*qStep);
+  const qMax=Math.min(1,Math.ceil(qRawMax/qStep)*qStep);
+  const iStep=.10;
+  const iMin=Math.max(0,Math.floor(iRawMin/.05)*.05);
+  const iMax=Math.min(1,iMin+Math.ceil((iRawMax-iMin)/iStep)*iStep);
+  const qSpan=Math.max(qMax-qMin,.1), iSpan=Math.max(iMax-iMin,.1);
+
+  const rows=pointsData.map(({index,company,quality,image,price})=>[
+    {html:`<span class="tb-point-key ${company.isUser?'user':''}">${index}</span>`},
     {html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},
     {html:fixed(quality,3)},
     {html:fixed(image,3)},
+    {html:`${quality-qAvg>=0?'+':''}${fixed(quality-qAvg,3)}`,className:quality>=qAvg?'good':'bad'},
+    {html:`${image-iAvg>=0?'+':''}${fixed(image-iAvg,3)}`,className:image>=iAvg?'good':'bad'},
     {html:money(price)}
   ]);
 
-  const qualities=pointsData.map(p=>p.quality);
-  const images=pointsData.map(p=>p.image);
-  const qRawMin=Math.min(...qualities), qRawMax=Math.max(...qualities);
-  const iRawMin=Math.min(...images), iRawMax=Math.max(...images);
-  const qPad=Math.max((qRawMax-qRawMin)*.14,.025);
-  const iPad=Math.max((iRawMax-iRawMin)*.14,.025);
-  const qMin=Math.max(0,qRawMin-qPad), qMax=Math.min(1,qRawMax+qPad);
-  const iMin=Math.max(0,iRawMin-iPad), iMax=Math.min(1,iRawMax+iPad);
-  const qSpan=Math.max(qMax-qMin,.01), iSpan=Math.max(iMax-iMin,.01);
-  const qAvg=qualities.reduce((a,b)=>a+b,0)/Math.max(qualities.length,1);
-  const iAvg=images.reduce((a,b)=>a+b,0)/Math.max(images.length,1);
-
-  const width=720,height=360,left=64,right=22,top=24,bottom=48;
+  const width=720,height=390,left=66,right=24,top=34,bottom=50;
   const plotW=width-left-right, plotH=height-top-bottom;
   const mapX=q=>left+((q-qMin)/qSpan)*plotW;
   const mapY=i=>top+(1-((i-iMin)/iSpan))*plotH;
-  const ticks=Array.from({length:5},(_,idx)=>idx/4);
-  const xTicks=ticks.map(t=>{
-    const value=qMin+t*qSpan, x=left+t*plotW;
-    return `<g><line x1="${x}" y1="${top}" x2="${x}" y2="${height-bottom}" class="tb-scatter-grid"/><text x="${x}" y="${height-22}" text-anchor="middle" class="tb-scatter-tick">${fixed(value,2)}</text></g>`;
+  const xValues=[]; for(let v=qMin;v<=qMax+.0001;v+=qStep) xValues.push(Number(v.toFixed(2)));
+  const yValues=[]; for(let v=iMin;v<=iMax+.0001;v+=iStep) yValues.push(Number(v.toFixed(2)));
+  const xTicks=xValues.map(value=>{
+    const x=mapX(value);
+    return `<g><line x1="${x}" y1="${top}" x2="${x}" y2="${height-bottom}" class="tb-scatter-grid"/><text x="${x}" y="${height-23}" text-anchor="middle" class="tb-scatter-tick">${fixed(value,2)}</text></g>`;
   }).join('');
-  const yTicks=ticks.map(t=>{
-    const value=iMax-t*iSpan, y=top+t*plotH;
+  const yTicks=yValues.map(value=>{
+    const y=mapY(value);
     return `<g><line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}" class="tb-scatter-grid"/><text x="${left-10}" y="${y+4}" text-anchor="end" class="tb-scatter-tick">${fixed(value,2)}</text></g>`;
   }).join('');
   const avgX=mapX(qAvg), avgY=mapY(iAvg);
-  const plotted=pointsData.map(({company,quality,image,price})=>{
+  const plotted=pointsData.map(({index,company,quality,image,price})=>{
     const x=mapX(quality),y=mapY(image);
     const color=company.isUser?'#1f5f99':'#aeb9c5';
-    return `<g class="${company.isUser?'user-point':'competitor-point'}"><title>${esc(company.name)} · Quality ${fixed(quality,3)} · Image ${fixed(image,3)} · Price ${money(price)}</title><circle cx="${x}" cy="${y}" r="${company.isUser?7:5}" fill="${color}" stroke="${company.isUser?'#163f66':'#fff'}" stroke-width="${company.isUser?2:1.5}"/>${company.isUser?`<text x="${x+10}" y="${y-10}" class="tb-scatter-user-label">${esc(company.name)}</text>`:''}</g>`;
+    return `<g class="${company.isUser?'user-point':'competitor-point'}"><title>#${index} ${esc(company.name)} · Quality ${fixed(quality,3)} · Image ${fixed(image,3)} · Price ${money(price)}</title><circle cx="${x}" cy="${y}" r="${company.isUser?8:7}" fill="${color}" stroke="${company.isUser?'#163f66':'#fff'}" stroke-width="${company.isUser?2:1.5}"/><text x="${x}" y="${y+3}" text-anchor="middle" class="tb-scatter-point-number ${company.isUser?'user':''}">${index}</text>${company.isUser?`<text x="${x+12}" y="${y-12}" class="tb-scatter-user-label">${esc(company.name)}</text>`:''}</g>`;
   }).join('');
-  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 ${width} ${height}">${xTicks}${yTicks}<line x1="${avgX}" y1="${top}" x2="${avgX}" y2="${height-bottom}" class="tb-scatter-average"/><line x1="${left}" y1="${avgY}" x2="${width-right}" y2="${avgY}" class="tb-scatter-average"/><line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="tb-scatter-axis-line"/><line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="tb-scatter-axis-line"/>${plotted}<text x="${left+plotW/2}" y="${height-4}" text-anchor="middle" class="tb-scatter-axis-label">Quality</text><text x="15" y="${top+plotH/2}" text-anchor="middle" class="tb-scatter-axis-label" transform="rotate(-90 15 ${top+plotH/2})">Image</text><text x="${avgX+6}" y="${top+14}" class="tb-scatter-average-label">Market avg quality</text><text x="${width-right-4}" y="${avgY-6}" text-anchor="end" class="tb-scatter-average-label">Market avg image</text></svg><div class="tb-scatter-help">MARKOWITZ diberi label langsung. Arahkan cursor ke titik lain untuk melihat detail competitor.</div></div>`;
-  return page('Product Image','Competitive positioning using auto-scaled quality and image axes for the selected round.',state,round,
-    `<div class="tb-two-col product-image-layout">${panel('Quality / Image Positioning',scatter)}${panel('Company Position',dataTable(['Company','Quality','Image','Price'],rows))}</div>`
+  const quadrants=`
+    <text x="${left+10}" y="${top+18}" class="tb-quadrant-label">Low quality · High image</text>
+    <text x="${width-right-10}" y="${top+18}" text-anchor="end" class="tb-quadrant-label">High quality · High image</text>
+    <text x="${left+10}" y="${height-bottom-10}" class="tb-quadrant-label">Low quality · Low image</text>
+    <text x="${width-right-10}" y="${height-bottom-10}" text-anchor="end" class="tb-quadrant-label">High quality · Low image</text>`;
+  const scatter=`<div class="tb-scatter"><svg viewBox="0 0 ${width} ${height}">${xTicks}${yTicks}<line x1="${avgX}" y1="${top}" x2="${avgX}" y2="${height-bottom}" class="tb-scatter-average"/><line x1="${left}" y1="${avgY}" x2="${width-right}" y2="${avgY}" class="tb-scatter-average"/>${quadrants}<line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="tb-scatter-axis-line"/><line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="tb-scatter-axis-line"/>${plotted}<text x="${left+plotW/2}" y="${height-5}" text-anchor="middle" class="tb-scatter-axis-label">Quality</text><text x="16" y="${top+plotH/2}" text-anchor="middle" class="tb-scatter-axis-label" transform="rotate(-90 16 ${top+plotH/2})">Image</text><text x="${avgX+7}" y="${top+30}" class="tb-scatter-average-label">Market avg quality</text><text x="${width-right-5}" y="${avgY-7}" text-anchor="end" class="tb-scatter-average-label">Market avg image</text></svg><div class="tb-scatter-help">Nomor titik sama dengan kolom # pada tabel. Hover titik untuk detail lengkap competitor.</div></div>`;
+  return page('Product Image','Competitive positioning using market-scaled quality and image axes for the selected round.',state,round,
+    `<div class="tb-two-col product-image-layout">${panel('Quality / Image Positioning',scatter,'tb-equal-panel')}${panel('Company Position',dataTable(['#','Company','Quality','Image','Δ Q avg','Δ I avg','Price'],rows),'tb-equal-panel')}</div>`
   );
 }
 
@@ -358,15 +396,21 @@ export function revenueStatusView(state, requestedRound) {
   const rounds=availableRounds(state);
   const company=userCompany(state);
   const current=snapshotFor(company,round);
-  const rows=state.companies.map(c=>{
-    const s=snapshotFor(c,round);
-    return [{html:`<span class="${c.isUser?'tb-user-dot':''}">${esc(c.name)}</span>`},{html:money(s.revenue)},{html:num(s.sales)},{html:money(s.netProfit),className:s.netProfit>=0?'good':'bad'}];
-  });
+  const ranked=state.companies
+    .map(c=>({company:c,s:snapshotFor(c,round)}))
+    .sort((a,b)=>(b.s.revenue||0)-(a.s.revenue||0));
+  const rows=ranked.map(({company:c,s},idx)=>[
+    {html:`#${idx+1}`,className:c.isUser?'tb-user-rank':''},
+    {html:`<span class="${c.isUser?'tb-user-dot':''}">${esc(c.name)}</span>`},
+    {html:money(s.revenue)},
+    {html:num(s.sales)},
+    {html:money(s.netProfit),className:s.netProfit>=0?'good':'bad'}
+  ]);
   const trend = rounds.length < 2
     ? panel('Revenue / Profit Snapshot',`<div class="tb-single-finance-grid"><div><span>Revenue R${round}</span><strong>${money(current.revenue)}</strong></div><div><span>Net Profit R${round}</span><strong class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</strong></div></div>`)
-    : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true}))}</div>`;
+    : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:1000000,hideLegend:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:250000,hideLegend:true,zeroLine:true,negativeArea:true}))}</div>`;
   return page('Revenue / Sales Status','Revenue, sales volume, and profitability by company and across rounds.',state,round,
-    `${trend}${panel('Company Revenue Status',dataTable(['Company','Revenue','Sales','Net Profit'],rows))}`
+    `${trend}${panel('Company Revenue Status',dataTable(['Rank','Company','Revenue','Sales','Net Profit'],rows))}`
   );
 }
 
@@ -375,6 +419,8 @@ export function salesTrendView(state, requestedRound) {
   const rounds=availableRounds(state);
   const c=userCompany(state);
   const current=snapshotFor(c,round);
+  const previousRound=rounds.filter(r=>r<round).at(-1);
+  const previous=Number.isFinite(previousRound)?snapshotFor(c,previousRound):null;
   const rows=rounds.map(r=>{
     const s=snapshotFor(c,r);
     return [{text:'R'+r},{html:num(s.potentialDemand)},{html:num(s.sales)},{html:num(s.production)},{html:pct(s.marketShare)}];
@@ -389,9 +435,16 @@ export function salesTrendView(state, requestedRound) {
         {name:'Potential demand',values:rounds.map(r=>snapshotFor(c,r).potentialDemand||0)},
         {name:'Sales',values:rounds.map(r=>snapshotFor(c,r).sales||0),highlight:true},
         {name:'Production',values:rounds.map(r=>snapshotFor(c,r).production||0)}
-      ],rounds,v=>num(v),{pointLabels:true}));
+      ],rounds,v=>num(v),{labelMode:'last',tickStep:250000}));
+  const demand=Number(current.potentialDemand||0), sales=Number(current.sales||0), production=Number(current.production||0);
+  const lost=Math.max(0,demand-sales), lostPct=demand>0?lost/demand:0;
+  const carryUsed=Math.max(0,sales-production);
+  const carryAvailable=Number(previous?.finishedGoods||0);
+  const insight = round>0 && lost>0
+    ? `<div class="tb-insight"><strong>Automatic debrief</strong><span>Demand gap R${round}: <b>${num(lost)} units (${pct(lostPct)})</b> tidak menjadi sales; supply hanya menutup <b>${pct(demand>0?sales/demand:0)}</b> dari demand. ${carryUsed>0?`Sales melebihi current production sebesar <b>${num(carryUsed)} units</b>${carryAvailable>0?`, konsisten dengan pemakaian carry-in finished goods R${previousRound} (${num(carryAvailable)} units)`:''}.`:''}</span></div>`
+    : '';
   return page('Sales Trend','Demand, sales, production, and share movement across completed rounds.',state,round,
-    `${visual}${panel('Round Data',dataTable(['Round','Demand','Sales','Production','Share'],rows))}`
+    `${visual}${insight}${panel('Round Data',dataTable(['Round','Demand','Sales','Production','Share'],rows))}`
   );
 }
 
