@@ -70,8 +70,10 @@ function lineChart(series, rounds, valueFormat = value => num(value)) {
     return `<g><line x1="${pad}" y1="${yy}" x2="${width-pad}" y2="${yy}" class="tb-grid-line"/><text x="2" y="${yy+3}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
   }).join('');
   const paths=series.map((s,idx)=>{
+    const color=PALETTE[idx%PALETTE.length];
     const pts=s.values.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
-    return `<polyline points="${pts}" fill="none" stroke="${PALETTE[idx%PALETTE.length]}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>`;
+    const dots=s.values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="${s.highlight?3.1:2.5}" fill="${color}" />`).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>${dots}`;
   }).join('');
   const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-5}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
   const legend=series.map((s,idx)=>`<span><i style="background:${PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('');

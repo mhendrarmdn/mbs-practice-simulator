@@ -1,4 +1,5 @@
 import '../css/app.css';
+import '../css/topboss-v12.css';
 import { MAX_ROUNDS, OPTIMIZER_RISK_PROFILES, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, STRATEGY_GOALS, WORKBOOK_RESULT_ROUNDS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';

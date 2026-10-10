@@ -95,7 +95,6 @@ export function shell(state, activeTab, themePreference, ui = {}) {
         <div class="brand">
           <div class="brand-mark">M</div>
           <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2</small></div>
-          <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Tutup sidebar" title="Tutup sidebar"><span></span><span></span><span></span></button>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
