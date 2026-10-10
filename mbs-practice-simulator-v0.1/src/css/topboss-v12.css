@@ -1933,3 +1933,45 @@ body{
 .tb-kpi>small.neutral{
   color:#617487!important;
 }
+
+
+/* v1.4.0 — logic calibration phase 1 */
+.calibration-phase{
+  display:grid;
+  gap:10px;
+  margin:12px 0;
+  padding:12px;
+  border:1px solid #cfdce7;
+  border-radius:5px;
+  background:#f8fbfd;
+}
+.calibration-phase>div:first-child span,
+.calibration-phase>div:first-child strong,
+.calibration-phase>div:first-child small{
+  display:block;
+}
+.calibration-phase>div:first-child span{
+  color:#718396;
+  font:700 8px 'IBM Plex Sans',sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.calibration-phase>div:first-child strong{
+  margin-top:4px;
+  color:#245b91;
+  font-size:13px;
+}
+.calibration-phase>div:first-child small{
+  margin-top:3px;
+  color:#6e8092;
+  font-size:9px;
+  line-height:1.45;
+}
+.callout.warn{
+  border-left-color:#d39c1d!important;
+  background:#fffaf0!important;
+  color:#6f5a28!important;
+}
+.callout.warn strong{
+  color:#8a6412!important;
+}

@@ -130,7 +130,9 @@ export function calibrationReport(state) {
   const r1 = (user.history || []).find(item => item.round === 1);
   if (!r1) return { available: false, comparable: false, score: null, rows: [] };
 
-  const comparable = isReferenceDecision(r1.decision || {});
+  const referenceDecision = isReferenceDecision(r1.decision || {});
+  const calibratedEnvironment = r1.economy?.presetKey === 'workbook-r1-calibration';
+  const comparable = referenceDecision && calibratedEnvironment;
   const metrics = [
     ['Potential Demand','potentialDemand'],
     ['Sales','sales'],
