@@ -1,45 +1,38 @@
 # Changelog
 
-## v0.8.0 — Strategy Lab + Excel Export
+## v0.9.0 — Robust Optimizer
 
-### Strategy Lab
-- Added six strategic objectives.
-- Added selected objective to game state.
-- Added Strategy Alignment score.
-- Added signal map for profitability, liquidity, market, capacity, premium, and readiness.
-- Added objective-specific priorities.
-- Added objective-specific risk guardrails.
-- Added cross-objective comparison table.
-- Captain controls the shared strategy goal in online rooms.
-
-### Excel Workbook Export
-- Added browser-side `.xlsx` export using SheetJS.
-- Added Summary worksheet.
-- Added Round History worksheet.
-- Added Strategy Alignment worksheet.
-- Added seven workbook-style Decision Matrix worksheets.
-- Added Round 6 Plan worksheet.
-- R6 outcome cells remain intentionally absent because Workbook Round 6 is planning-only.
+### Robust Decision Search
+- Added Robust Optimizer page.
+- Generates a transparent set of candidate management drafts.
+- Tests each candidate across five macro scenarios.
+- Ranks candidates using selected Strategy Goal and risk profile.
+- Added Conservative / Balanced / Aggressive optimizer profiles.
+- Added average and worst-case Practice NPV analysis.
+- Added liquidity-safety score.
+- Added scenario-volatility metric.
+- Added top-candidate ranking.
+- Added per-scenario robustness table.
+- Added Apply Recommended Draft action.
+- Added optimizer Markdown export.
 
 ### Compatibility
-- Migrates v0.1–v0.7 browser saves to v0.8.
+- Migrates v0.1–v0.8 browser saves to v0.9.
+- Works with existing v0.3 shared-room JSON state.
 - No new Supabase migration.
-- Existing Vercel Root Directory unchanged.
+- Workbook R6 remains planning-only and is intentionally not optimized through simulated R6 outcomes.
+
+## v0.8.0
+Strategy Lab + Excel Workbook Export.
 
 ## v0.7.0
 Workbook R0–R5 + Round 6 Planning Lab.
 
 ## v0.6.0
-Competition Command Center, stress tests, presentation and Q&A preparation.
+Competition Command Center.
 
 ## v0.5.0
-Workbook-aligned operational mechanics and Decision Matrices.
-
-## v0.4.0
-Decision Readiness, Round Debrief, Scenario Presets, R1 Calibration Lab.
-
-## v0.3.0
-Captain/Member shared rooms, presence, revision-safe sync, shared timer.
+Workbook-aligned operations fidelity and Decision Matrices.
 
 ## Model boundary
-This remains an independent training simulator. Strategy Alignment and workbook exports present the training model transparently.
+Robust Optimizer is a candidate-ranking heuristic inside the independent practice engine, not an official TopBoss optimizer.

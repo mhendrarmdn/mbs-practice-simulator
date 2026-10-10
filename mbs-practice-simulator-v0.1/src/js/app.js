@@ -1,5 +1,5 @@
 import '../css/app.css';
-import { MAX_ROUNDS, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, STRATEGY_GOALS, WORKBOOK_RESULT_ROUNDS } from './config.js';
+import { MAX_ROUNDS, OPTIMIZER_RISK_PROFILES, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, STRATEGY_GOALS, WORKBOOK_RESULT_ROUNDS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';
 import {
@@ -22,6 +22,7 @@ import { getThemePreference, initTheme, setThemePreference } from './theme.js';
 import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
 import { buildRound6Review, buildWorkbookPlanMarkdown } from './workbookLab.js';
 import { exportWorkbookExcel } from './excelExporter.js';
+import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -225,6 +226,19 @@ function exportWorkbookPlan() {
   URL.revokeObjectURL(url);
 }
 
+function exportOptimizerBrief() {
+  const markdown = buildOptimizerMarkdown(state, state.optimizerRisk || 'balanced');
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `mbs-optimizer-${String(state.teamName || 'team').toLowerCase()}-r${state.currentRound}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
@@ -289,6 +303,19 @@ function bindEvents() {
     const key = event.target.value;
     if (!STRATEGY_GOALS[key]) return;
     state.strategyGoal = key;
+    persistLocal();
+    if (state.roomCode) await commitCanonicalState();
+    render();
+  });
+
+  document.querySelector('#optimizerRisk')?.addEventListener('change', async event => {
+    if (!captainOnly('Optimizer risk profile')) {
+      event.target.value = state.optimizerRisk || 'balanced';
+      return;
+    }
+    const key = event.target.value;
+    if (!OPTIMIZER_RISK_PROFILES[key]) return;
+    state.optimizerRisk = key;
     persistLocal();
     if (state.roomCode) await commitCanonicalState();
     render();
@@ -380,6 +407,30 @@ function bindEvents() {
 
       } else if (action === 'export-workbook-excel') {
         exportWorkbookExcel(state);
+
+      } else if (action === 'apply-optimizer-draft') {
+        if (!captainOnly('Apply optimizer draft')) return;
+        if (state.decisionLocked) {
+          alert('Draft sedang locked. Unlock dulu sebelum menerapkan rekomendasi optimizer.');
+          return;
+        }
+        const result = robustOptimize(state, state.optimizerRisk || 'balanced');
+        if (!result.available || !result.best) {
+          alert(result.reason || 'Optimizer tidak tersedia.');
+          return;
+        }
+        state.draft = deepClone(result.best.decision);
+        persistLocal();
+        if (state.roomCode) {
+          for (const [field, value] of Object.entries(state.draft)) {
+            await patchDraft(state, field, value);
+          }
+          await refreshRoom({ rerender: false });
+        }
+        activeTab = 'optimizer';
+
+      } else if (action === 'export-optimizer-brief') {
+        exportOptimizerBrief();
 
       } else if (action === 'toggle-surprise') {
         await updateCaptainSetting(() => { state.surpriseMode = !state.surpriseMode; });

@@ -1,4 +1,4 @@
-import { OBSERVED_ANCHORS, SCENARIO_PRESETS, STRATEGY_GOALS, TRAINING_PROXY_NOTES } from './config.js';
+import { OBSERVED_ANCHORS, OPTIMIZER_RISK_PROFILES, SCENARIO_PRESETS, STRATEGY_GOALS, TRAINING_PROXY_NOTES } from './config.js';
 import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
@@ -6,6 +6,7 @@ import { decisionMatrices } from './decisionMatrix.js';
 import { competitionSnapshot, presentationBrief, strategyBrief, stressTestDraft } from './competitionCenter.js';
 import { buildRound6Review, workbookStage } from './workbookLab.js';
 import { strategyAlignment, strategyComparison } from './strategySystem.js';
+import { robustOptimize } from './robustOptimizer.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
@@ -13,6 +14,7 @@ const NAV_ICONS = {
   competition: '◆',
   workbook: 'W',
   strategy: 'S',
+  optimizer: 'O',
   decisions: '⌁',
   status: '◎',
   analysis: '▤',
@@ -59,13 +61,14 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.8</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.9</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
           ${navButton('competition', 'Competition Center', activeTab)}
           ${navButton('workbook', 'Workbook Lab', activeTab)}
           ${navButton('strategy', 'Strategy Lab', activeTab)}
+          ${navButton('optimizer', 'Robust Optimizer', activeTab)}
           ${navButton('decisions', 'Business Decisions', activeTab)}
           ${navButton('status', 'Status', activeTab)}
           ${navButton('analysis', 'Analysis', activeTab)}
@@ -386,6 +389,100 @@ export function strategyView(state) {
   `;
 }
 
+
+function optimizerTone(value) {
+  return value >= 75 ? 'good' : value >= 55 ? 'warn' : 'bad';
+}
+
+export function optimizerView(state) {
+  const result = robustOptimize(state, state.optimizerRisk || 'balanced');
+  const captain = isCaptain() || !state.roomCode;
+
+  if (!result.available) {
+    return `
+      <div class="page-head">
+        <div><div class="eyebrow">ROBUST DECISION SEARCH</div><h1>Robust Optimizer</h1><p class="subtitle">Scenario-based candidate ranking inside the transparent training model.</p></div>
+      </div>
+      <div class="card">
+        ${cardHead('OPTIMIZER STATUS','Not Available','O')}
+        <div class="callout">${esc(result.reason || 'Optimizer unavailable.')}</div>
+      </div>`;
+  }
+
+  const best = result.best;
+  const current = result.current;
+
+  return `
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">ROBUST DECISION SEARCH</div>
+        <h1>Robust Optimizer</h1>
+        <p class="subtitle">Uji candidate drafts terhadap lima macro scenarios, strategy goal terpilih, dan downside risk. Hasilnya adalah decision-support ranking, bukan official TopBoss optimum.</p>
+      </div>
+      <div class="actions">
+        <select id="optimizerRisk" class="top-control optimizer-select" ${!captain ? 'disabled' : ''}>
+          ${Object.entries(OPTIMIZER_RISK_PROFILES).map(([key,p])=>`<option value="${key}" ${result.riskProfile===key?'selected':''}>${esc(p.label)}</option>`).join('')}
+        </select>
+        <button class="secondary" data-action="export-optimizer-brief">⇩ Export Optimizer Brief</button>
+        <button class="primary" data-action="apply-optimizer-draft" ${!captain || state.decisionLocked ? 'disabled' : ''}>Apply Recommended Draft</button>
+      </div>
+    </div>
+
+    <section class="optimizer-kpis">
+      ${metric('Robust Score', best.robustScore+'/100', esc(best.name), optimizerTone(best.robustScore))}
+      ${metric('vs Current Draft', (result.improvement>=0?'+':'')+result.improvement+' pts', 'Robust score improvement', result.improvement>=0?'good':'bad')}
+      ${metric('Avg Alignment', best.avgAlignment+'/100', 'Across 5 scenarios', optimizerTone(best.avgAlignment))}
+      ${metric('Avg NPV Δ', money(best.avgNpvDelta), 'Practice NPV proxy', best.avgNpvDelta>=0?'good':'bad')}
+      ${metric('Worst NPV Δ', money(best.worstNpvDelta), 'Downside scenario', best.worstNpvDelta>=0?'good':'bad')}
+      ${metric('Liquidity Safety', best.liquiditySafety+'/100', 'Overdraft resilience', optimizerTone(best.liquiditySafety))}
+    </section>
+
+    <section class="dashboard-grid optimizer-main-grid">
+      <div class="card">
+        ${cardHead('RECOMMENDED CANDIDATE', best.name, 'O')}
+        <div class="optimizer-decision-grid">
+          ${[
+            ['Price',best.decision.price,'money'],
+            ['Marketing',best.decision.marketing,'num'],
+            ['R&D',best.decision.rd,'num'],
+            ['Production',best.decision.production,'num'],
+            ['Procurement',best.decision.materialPurchase,'num'],
+            ['Equipment',best.decision.equipment,'num'],
+            ['Maintenance',best.decision.maintenance,'num'],
+            ['Dividend',best.decision.dividend,'num']
+          ].map(([label,value,type])=>`<div><span>${label}</span><strong>${type==='money'?money(value):num(value)}</strong></div>`).join('')}
+        </div>
+        <div class="callout">${esc(result.profile.description)} Strategy Goal: <strong>${esc(state.strategyGoal)}</strong>.</div>
+      </div>
+
+      <div class="card">
+        ${cardHead('ROBUSTNESS PROFILE','Best Candidate','◇')}
+        ${statsList([
+          ['Robust Score',best.robustScore+'/100',optimizerTone(best.robustScore)],
+          ['Average Strategy Alignment',best.avgAlignment+'/100',optimizerTone(best.avgAlignment)],
+          ['Liquidity Safety',best.liquiditySafety+'/100',optimizerTone(best.liquiditySafety)],
+          ['Scenario Volatility',best.volatility,best.volatility<=20?'good':best.volatility<=35?'warn':'bad'],
+          ['Average Profit',money(best.avgProfit),best.avgProfit>=0?'good':'bad'],
+          ['Average Market Share',pct(best.avgShare)]
+        ])}
+      </div>
+    </section>
+
+    <section class="card optimizer-table-card">
+      ${cardHead('CANDIDATE RANKING','Top Decision Sets','▤')}
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Candidate</th><th>Robust</th><th>Avg Align</th><th>Avg NPV Δ</th><th>Worst NPV Δ</th><th>Liquidity</th><th>Volatility</th></tr></thead>
+      <tbody>${result.candidates.slice(0,8).map((c,i)=>`<tr class="${c.name==='Current Draft'?'user-row':''}"><td>${i+1}</td><td>${esc(c.name)}</td><td class="${optimizerTone(c.robustScore)}">${c.robustScore}</td><td>${c.avgAlignment}</td><td class="${c.avgNpvDelta>=0?'good':'bad'}">${money(c.avgNpvDelta)}</td><td class="${c.worstNpvDelta>=0?'good':'bad'}">${money(c.worstNpvDelta)}</td><td>${c.liquiditySafety}</td><td>${c.volatility}</td></tr>`).join('')}</tbody></table></div>
+    </section>
+
+    <section class="card optimizer-scenarios-card">
+      ${cardHead('SCENARIO ROBUSTNESS', best.name, '◎')}
+      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Alignment</th><th>Profit</th><th>Cash</th><th>Overdraft</th><th>Share</th><th>Unit Cost</th><th>NPV Δ</th></tr></thead>
+      <tbody>${best.outcomes.map(o=>`<tr><td>${esc(o.scenarioLabel)}</td><td>${o.alignment}</td><td class="${o.netProfit>=0?'good':'bad'}">${money(o.netProfit)}</td><td>${money(o.cash)}</td><td class="${o.overdraft>0?'bad':''}">${money(o.overdraft)}</td><td>${pct(o.marketShare)}</td><td>${money(o.unitCost)}</td><td class="${o.npvDelta>=0?'good':'bad'}">${money(o.npvDelta)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="callout">${esc(result.disclaimer)}</div>
+    </section>
+  `;
+}
+
 export function decisionsView(state) {
   const user = state.companies.find(company => company.isUser);
   const d = state.draft;
@@ -645,6 +742,7 @@ export function bodyForTab(state, activeTab) {
     case 'competition': return competitionView(state);
     case 'workbook': return workbookView(state);
     case 'strategy': return strategyView(state);
+    case 'optimizer': return optimizerView(state);
     case 'decisions': return decisionsView(state);
     case 'status': return statusView(state);
     case 'analysis': return analysisView(state);

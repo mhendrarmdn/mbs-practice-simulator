@@ -1,5 +1,5 @@
-export const STORAGE_KEY = 'mbs_practice_v08';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v07', 'mbs_practice_v06', 'mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v09';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v08', 'mbs_practice_v07', 'mbs_practice_v06', 'mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
@@ -167,5 +167,21 @@ export const STRATEGY_GOALS = {
     label: 'Premium Brand',
     short: 'Build quality, image, and pricing power.',
     description: 'Fokus pada quality, image, R&D, marketing, dan pricing power sambil menjaga demand serta margin.'
+  }
+};
+
+
+export const OPTIMIZER_RISK_PROFILES = {
+  conservative: {
+    label: 'Conservative',
+    description: 'Lebih berat ke worst-case, liquidity, dan downside protection.'
+  },
+  balanced: {
+    label: 'Balanced',
+    description: 'Menyeimbangkan strategy alignment, average Practice NPV, dan downside resilience.'
+  },
+  aggressive: {
+    label: 'Aggressive',
+    description: 'Lebih berat ke upside Practice NPV dan market capture, dengan downside tolerance lebih tinggi.'
   }
 };
