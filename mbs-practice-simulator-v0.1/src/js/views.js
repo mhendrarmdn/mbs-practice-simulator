@@ -1,6 +1,7 @@
-import { OBSERVED_ANCHORS, TRAINING_PROXY_NOTES } from './config.js';
+import { OBSERVED_ANCHORS, SCENARIO_PRESETS, TRAINING_PROXY_NOTES } from './config.js';
 import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
+import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
@@ -50,7 +51,7 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.3</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.4</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
@@ -119,6 +120,7 @@ export function dashboardView(state) {
   const rank = sorted.findIndex(c => c.isUser) + 1;
   const revenueMax = Math.max(...user.history.map(item => item.revenue), 1);
   const latestEvent = state.eventHistory?.at(-1);
+  const debrief = roundDebrief(state);
 
   return `
     <div class="page-head">
@@ -143,6 +145,10 @@ export function dashboardView(state) {
         ${cardHead('HEALTH MONITOR', 'Management Alerts', '△')}
         ${diagnosticText(user)}
       </div>
+    </section>
+    <section class="card debrief-card">
+      ${cardHead('ROUND DEBRIEF', debrief.headline, '◈')}
+      <div class="debrief-grid">${debrief.items.map((item,index)=>`<div><b>${String(index+1).padStart(2,'0')}</b><span>${esc(item)}</span></div>`).join('')}</div>
     </section>`;
 }
 
@@ -157,6 +163,7 @@ export function decisionsView(state) {
   const captain = isCaptain() || !state.roomCode;
   const locked = Boolean(state.decisionLocked);
   const s = previewSensitivity(state, state.sensitivity?.key || 'price', state.sensitivity?.deltaPct ?? 10);
+  const readiness = draftReadiness(state);
 
   return `
     <div class="page-head">
@@ -185,6 +192,11 @@ export function decisionsView(state) {
       </div>
 
       <div class="side-stack">
+        <div class="card readiness-card">
+          ${cardHead('PRE-SUBMIT CHECK', 'Decision Readiness', '✓')}
+          <div class="readiness-score"><strong>${readiness.score}</strong><span>/100</span><em>${readiness.score >= 80 ? 'READY' : readiness.score >= 60 ? 'REVIEW' : 'HIGH RISK'}</em></div>
+          <div class="readiness-list">${readiness.checks.map(item=>`<div class="readiness-item ${item.severity}"><b>${item.severity === 'good' ? '✓' : item.severity === 'warning' ? '△' : '!'}</b><div><strong>${esc(item.title)}</strong><span>${esc(item.detail)}</span></div></div>`).join('')}</div>
+        </div>
         <div class="card">
           ${cardHead('OPERATING POSITION', 'Before Submit', '▦')}
           ${statsList([
@@ -270,11 +282,18 @@ export function leaderboardView(state) {
 
 export function scenariosView(state) {
   const captain = isCaptain() || !state.roomCode;
-  return `<div class="page-head"><div><div class="eyebrow">SURPRISE ROUND</div><h1>Scenario Center</h1><p class="subtitle">Event eksternal memengaruhi demand, raw material, atau capacity.</p></div></div>
+  const selectedPreset = state.mode === 'competition' ? 'auto' : (state.scenarioPreset || 'auto');
+  return `<div class="page-head"><div><div class="eyebrow">SURPRISE ROUND</div><h1>Scenario Center</h1><p class="subtitle">Stress-test strategi dengan macro preset di Training/Sandbox. Competition selalu memakai Auto.</p></div></div>
     <section class="scenario-grid">
       <div class="card">
         ${cardHead('SETTINGS','Scenario Rules','⚙')}
-        <button class="scenario-toggle ${state.surpriseMode?'on':''}" data-action="toggle-surprise" ${!captain ? 'disabled' : ''}><strong>${state.surpriseMode?'ON':'OFF'}</strong><span>Surprise Events</span><small>Mulai berpeluang muncul sejak Round 2.</small></button>
+        <div class="field"><label><span>Scenario Preset</span><span>${state.mode === 'competition' ? 'locked in Competition' : 'training control'}</span></label>
+          <select id="scenarioPreset" ${!captain || state.mode === 'competition' ? 'disabled' : ''}>
+            ${Object.entries(SCENARIO_PRESETS).map(([key,preset])=>`<option value="${key}" ${selectedPreset===key?'selected':''}>${esc(preset.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="scenario-description">${esc(SCENARIO_PRESETS[selectedPreset]?.description || '')}</div>
+        <button class="scenario-toggle ${state.surpriseMode?'on':''}" data-action="toggle-surprise" ${!captain || selectedPreset !== 'auto' ? 'disabled' : ''}><strong>${state.surpriseMode?'ON':'OFF'}</strong><span>Random Surprise Events</span><small>Aktif hanya saat preset Auto. Mulai berpeluang muncul sejak Round 2.</small></button>
       </div>
       <div class="card">
         ${cardHead('EVENT HISTORY','What Changed','✦')}
@@ -283,11 +302,19 @@ export function scenariosView(state) {
     </section>`;
 }
 
-export function modelView() {
-  return `<div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Pisahkan observed calibration anchors dari training-model approximations.</p></div></div>
+export function modelView(state) {
+  const calibration = calibrationReport(state);
+  const calibrationLabel = !calibration.available ? 'Run R1 Reference' : calibration.comparable ? `${calibration.score}/100` : 'Not comparable';
+  return `<div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Pisahkan observed calibration anchors dari training-model approximations dan ukur fidelity saat input reference digunakan.</p></div></div>
     <section class="dashboard-grid">
       <div class="card">${cardHead('OBSERVED DATA','Calibration Anchors','◈')}<div class="anchor-grid">${OBSERVED_ANCHORS.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong><small>Observed calibration anchor</small></div>`).join('')}</div></div>
-      <div class="card">${cardHead('TRAINING MODEL','Approximation Boundary','◈')}${TRAINING_PROXY_NOTES.map(x=>`<div class="proxy-note">${esc(x)}</div>`).join('')}<div class="callout">Simulator tidak mengklaim mengetahui formula proprietary TopBoss.</div></div>
+      <div class="card">${cardHead('CALIBRATION LAB','R1 Fidelity','◎')}
+        <div class="calibration-score"><span>Calibration Score</span><strong>${calibrationLabel}</strong><small>${!calibration.available ? 'Load R1 Reference lalu submit Round 1.' : calibration.comparable ? 'Score = 100 − mean capped absolute % error.' : 'Round 1 decision berbeda dari observed R1 reference.'}</small></div>
+        ${calibration.available ? `<div class="calibration-table"><div class="table-wrap"><table><thead><tr><th>Metric</th><th>Observed</th><th>Simulated</th><th>Error</th></tr></thead><tbody>${calibration.rows.map(row=>`<tr><td>${esc(row.label)}</td><td>${row.key==='marketShare'?pct(row.observed):num(row.observed)}</td><td>${row.key==='marketShare'?pct(row.simulated):num(row.simulated)}</td><td class="${row.errorPct===null?'':row.errorPct<15?'good':row.errorPct<35?'warn':'bad'}">${row.errorPct===null?'n/a':fixed(row.errorPct,1)+'%'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+        <hr>
+        ${TRAINING_PROXY_NOTES.map(x=>`<div class="proxy-note">${esc(x)}</div>`).join('')}
+        <div class="callout">Calibration Lab mengevaluasi output model terhadap anchor yang kita punya; ini bukan bukti formula proprietary berhasil direplikasi.</div>
+      </div>
     </section>`;
 }
 

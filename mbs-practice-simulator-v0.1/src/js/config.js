@@ -1,5 +1,5 @@
-export const STORAGE_KEY = 'mbs_practice_v03';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v02', 'mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v04';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
@@ -62,3 +62,67 @@ export const TRAINING_PROXY_NOTES = [
   'Cost and finance relationships are calibrated heuristics and should be refined as more real decision → result pairs become available.',
   'AI competitors are strategy archetypes that adapt to prior-round performance; they are not replicas of actual teams.'
 ];
+
+
+export const R1_CALIBRATION = {
+  potentialDemand: 552620,
+  sales: 291968,
+  marketShare: 0.0693,
+  finishedGoods: 0,
+  capacity: 418924,
+  rawMaterial: 2405416,
+  unitCost: 7.96,
+  revenue: 1868595,
+  netProfit: -456502,
+  cash: 0,
+  overdraft: 776366,
+  equity: 10254050
+};
+
+export const SCENARIO_PRESETS = {
+  auto: {
+    label: 'Auto / Competition-like',
+    description: 'Macro bergerak secara seeded dan surprise event dapat muncul sesuai rules.'
+  },
+  baseline: {
+    label: 'Controlled Baseline',
+    description: 'Growth, seasonal, raw material, dan capacity dibuat netral untuk eksperimen.',
+    growth: 1,
+    seasonal: 1,
+    raw: 1,
+    capacity: 1,
+    event: null
+  },
+  demandBoom: {
+    label: 'Demand Boom',
+    description: 'Permintaan pasar didorong +15% untuk stress-test supply dan capacity.',
+    demand: 1.15,
+    raw: 1,
+    capacity: 1,
+    event: { title: 'Demand Boom', text: 'Preset: permintaan pasar naik 15%.', raw: 1, demand: 1.15, capacity: 1 }
+  },
+  slowdown: {
+    label: 'Economic Slowdown',
+    description: 'Permintaan turun 12% untuk menguji inventory dan margin discipline.',
+    demand: 0.88,
+    raw: 1,
+    capacity: 1,
+    event: { title: 'Economic Slowdown', text: 'Preset: permintaan pasar turun 12%.', raw: 1, demand: 0.88, capacity: 1 }
+  },
+  rawShock: {
+    label: 'Raw Material Shock',
+    description: 'Raw material index naik 18% untuk menguji pricing dan working capital.',
+    demand: 1,
+    raw: 1.18,
+    capacity: 1,
+    event: { title: 'Raw Material Shock', text: 'Preset: harga input naik 18%.', raw: 1.18, demand: 1, capacity: 1 }
+  },
+  equipmentDisruption: {
+    label: 'Equipment Disruption',
+    description: 'Capacity efektif turun 10% untuk menguji resilience operasi.',
+    demand: 1,
+    raw: 1,
+    capacity: 0.90,
+    event: { title: 'Equipment Disruption', text: 'Preset: capacity efektif turun 10%.', raw: 1, demand: 1, capacity: 0.90 }
+  }
+};
