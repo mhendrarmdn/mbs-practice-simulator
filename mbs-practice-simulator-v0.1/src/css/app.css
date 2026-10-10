@@ -239,3 +239,17 @@ hr{border:0;border-top:1px solid var(--border);margin:17px 0}.empty{font-size:10
 @media(max-width:1180px){.strategy-comparison{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.strategy-hero{grid-template-columns:1fr}.strategy-comparison{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:460px){.strategy-comparison{grid-template-columns:1fr}}
+
+
+/* v0.9 robust optimizer */
+.optimizer-select{min-width:140px}
+.optimizer-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.optimizer-main-grid{margin-bottom:14px}
+.optimizer-decision-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.optimizer-decision-grid>div{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px}
+.optimizer-decision-grid span{display:block;font-size:8px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}
+.optimizer-decision-grid strong{display:block;margin-top:5px;font:700 13px 'IBM Plex Mono',monospace}
+.optimizer-table-card,.optimizer-scenarios-card{margin-top:14px}
+@media(max-width:1180px){.optimizer-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.optimizer-decision-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.optimizer-kpis,.optimizer-decision-grid{grid-template-columns:1fr}}
