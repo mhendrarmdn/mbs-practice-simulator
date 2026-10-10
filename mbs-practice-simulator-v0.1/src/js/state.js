@@ -163,8 +163,9 @@ function baselineField(team = 'MARKOWITZ') {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '1.3.0',
+    version: '1.4.0',
     baselineProfile: 'equal-share-16-r0-v13',
+    logicCalibrationProfile: 'phase1-r1-v14',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -216,7 +217,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '1.3.0';
+  state.version = '1.4.0';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -236,6 +237,12 @@ export function migrateState(input) {
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
   state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];
   state.companies = state.companies.map(migrateCompany);
+
+  if (!state.logicCalibrationProfile) {
+    state.logicCalibrationProfile = state.currentRound === 0
+      ? 'phase1-r1-v14'
+      : 'legacy-active-pre-v14';
+  }
 
   const hasV13Baseline = state.baselineProfile === 'equal-share-16-r0-v13'
     && state.companies.length === COMPETITION_FIELD_SIZE;

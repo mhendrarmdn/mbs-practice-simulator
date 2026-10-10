@@ -82,6 +82,12 @@ export function simulateRound(state) {
   if (state.currentRound >= state.maxRounds) return state;
 
   const round = state.currentRound + 1;
+  const calibrated = state.logicCalibrationProfile === 'phase1-r1-v14';
+  const qualityResponse = calibrated ? QUALITY_RD_RESPONSE : 0.08;
+  const imageResponse = calibrated ? IMAGE_MARKETING_RESPONSE : 0.043;
+  const marketingWeight = calibrated ? ATTRACTIVENESS_MARKETING_WEIGHT : 0.08;
+  const rdWeight = calibrated ? ATTRACTIVENESS_RD_WEIGHT : 0.05;
+  const directUnitCostBase = calibrated ? DIRECT_UNIT_COST_BASE : 3.24;
   const economy = economyForRound(state, round);
   const decisions = state.companies.map(company => (
     company.isUser ? normalizeDecision(state.draft) : normalizeDecision(aiDecision(company, round))
