@@ -253,3 +253,81 @@ hr{border:0;border-top:1px solid var(--border);margin:17px 0}.empty{font-size:10
 @media(max-width:1180px){.optimizer-kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.optimizer-decision-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){.optimizer-kpis,.optimizer-decision-grid{grid-template-columns:1fr}}
+
+
+/* v1.0 TopBoss parity + collapsible navigation + full financial statements */
+.app-shell{transition:grid-template-columns var(--animation-duration-normal) ease}
+.app-shell.sidebar-is-collapsed{grid-template-columns:72px minmax(0,1fr)}
+.sidebar{transition:width var(--animation-duration-normal) ease,transform var(--animation-duration-normal) ease}
+.brand{position:relative}
+.sidebar-toggle{margin-left:auto;width:28px;height:28px;border-radius:8px;border:1px solid color-mix(in srgb,var(--sidebar-foreground) 16%,transparent);background:color-mix(in srgb,var(--sidebar-foreground) 5%,transparent);color:var(--sidebar-foreground);cursor:pointer;font-size:18px;display:grid;place-items:center}
+.hamburger{width:34px;height:34px;border:1px solid var(--border);background:var(--card);border-radius:var(--radius);display:grid;align-content:center;gap:4px;padding:8px;cursor:pointer;box-shadow:var(--shadow)}
+.hamburger span{display:block;height:2px;background:var(--foreground);border-radius:999px}
+.top-left-with-menu{gap:12px}
+.nav{gap:10px}
+.nav-group{display:grid;gap:3px}
+.nav-group-label{padding:8px 11px 4px;font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:color-mix(in srgb,var(--sidebar-foreground) 45%,transparent)}
+.sidebar.collapsed .brand-copy,.sidebar.collapsed .sidebar-toggle,.sidebar.collapsed .nav-text,.sidebar.collapsed .nav-group-label,.sidebar.collapsed .sidebar-bottom{display:none}
+.sidebar.collapsed .brand{justify-content:center;padding-left:0;padding-right:0}
+.sidebar.collapsed .nav{gap:5px}
+.sidebar.collapsed .nav-group{gap:3px}
+.sidebar.collapsed .nav button{justify-content:center;padding:10px 8px}
+.sidebar.collapsed .nav button.active{box-shadow:inset 3px 0 0 var(--primary)}
+.sidebar.collapsed .nav-ico{font-size:15px}
+.sidebar-scrim{display:none}
+
+.topboss-breadcrumb{display:flex;align-items:center;gap:7px;margin:-8px 0 14px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);font:600 9px 'IBM Plex Mono',monospace;color:var(--muted-foreground)}
+.topboss-breadcrumb span{color:var(--primary)}
+
+.round-picker{display:flex;align-items:center;gap:8px;font:600 9px 'IBM Plex Mono',monospace;color:var(--muted-foreground)}
+.round-picker select{background:var(--card);border:1px solid var(--border);color:var(--foreground);border-radius:var(--radius);padding:9px 28px 9px 10px;outline:none}
+.financial-summary-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.financial-statement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.financial-paper{padding:0;overflow:hidden}
+.financial-paper .card-head{padding:16px 16px 12px;margin:0;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 75%,var(--card))}
+.fs-lines{padding:6px 0}
+.fs-section{padding:9px 16px 5px;font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:var(--accent)}
+.fs-line{display:flex;justify-content:space-between;gap:14px;padding:7px 16px;border-bottom:1px solid color-mix(in srgb,var(--border) 58%,transparent);font-size:10px}
+.fs-line:last-child{border-bottom:0}
+.fs-line span{color:var(--muted-foreground)}
+.fs-line strong{font:600 10px 'IBM Plex Mono',monospace;text-align:right;font-variant-numeric:tabular-nums}
+.fs-indent{padding-left:27px}
+.fs-subtotal{background:color-mix(in srgb,var(--surface) 72%,transparent);font-weight:700}
+.fs-subtotal span,.fs-subtotal strong{color:var(--foreground)}
+.fs-total{margin-top:3px;background:color-mix(in srgb,var(--primary) 9%,var(--surface));border-top:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));border-bottom:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));font-weight:800}
+.fs-total span,.fs-total strong{color:var(--foreground)}
+.financial-source-note{margin-top:14px}
+.ratio-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ratio-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:15px;box-shadow:var(--shadow)}
+.ratio-card span{display:block;font-size:9px;color:var(--muted-foreground)}
+.ratio-card strong{display:block;margin-top:8px;font:800 20px 'Bricolage Grotesque',sans-serif}
+
+@media(max-width:1250px){
+  .financial-summary-strip{grid-template-columns:repeat(3,1fr)}
+  .financial-statement-grid{grid-template-columns:1fr 1fr}
+  .financial-statement-grid .financial-paper:last-child{grid-column:1/-1}
+}
+@media(max-width:900px){
+  .app-shell,.app-shell.sidebar-is-collapsed{grid-template-columns:1fr}
+  .sidebar{position:fixed!important;inset:0 auto 0 0;width:268px;height:100vh!important;z-index:500;box-shadow:var(--shadow-lg);transform:translateX(0);overflow:auto}
+  .sidebar.collapsed{transform:translateX(-105%);width:268px}
+  .sidebar.collapsed .brand-copy,.sidebar.collapsed .sidebar-toggle,.sidebar.collapsed .nav-text,.sidebar.collapsed .nav-group-label,.sidebar.collapsed .sidebar-bottom{display:initial}
+  .sidebar.collapsed .brand{justify-content:flex-start}
+  .sidebar.collapsed .nav button{justify-content:flex-start;padding:10px 11px}
+  .sidebar-is-collapsed .sidebar-scrim{display:none}
+  .sidebar-scrim{display:block;position:fixed;inset:0;border:0;background:rgba(2,10,18,.52);z-index:450}
+  .workspace{min-width:0}
+  .nav{display:flex!important}
+  .nav-group{display:grid}
+  .financial-statement-grid{grid-template-columns:1fr}
+  .financial-statement-grid .financial-paper:last-child{grid-column:auto}
+  .ratio-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:620px){
+  .financial-summary-strip{grid-template-columns:1fr 1fr}
+  .ratio-grid{grid-template-columns:1fr 1fr}
+  .top-left-with-menu{align-items:center}
+}
+@media(max-width:440px){
+  .financial-summary-strip,.ratio-grid{grid-template-columns:1fr}
+}

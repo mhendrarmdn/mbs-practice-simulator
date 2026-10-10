@@ -27,6 +27,12 @@ import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
 const root = document.querySelector('#app');
 let state = loadState();
 let activeTab = 'dashboard';
+const SIDEBAR_KEY = 'mbs_sidebar_collapsed_v10';
+const storedSidebar = localStorage.getItem(SIDEBAR_KEY);
+let sidebarCollapsed = storedSidebar === null
+  ? window.matchMedia('(max-width: 900px)').matches
+  : storedSidebar === '1';
+let financialRound = null;
 let pollTimer = null;
 let timerTick = null;
 const draftTimers = new Map();
@@ -177,8 +183,8 @@ function startTimer() {
 
 function render(restartTimer = true) {
   state.timerRemaining = timerRemaining();
-  root.innerHTML = shell(state, activeTab, getThemePreference());
-  document.querySelector('#content').innerHTML = bodyForTab(state, activeTab);
+  root.innerHTML = shell(state, activeTab, getThemePreference(), { sidebarCollapsed });
+  document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound });
   bindEvents();
   if (restartTimer) startTimer();
 }
@@ -243,12 +249,21 @@ function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
       activeTab = button.dataset.tab;
+      if (window.matchMedia('(max-width: 900px)').matches) {
+        sidebarCollapsed = true;
+        localStorage.setItem(SIDEBAR_KEY, '1');
+      }
       render();
     });
   });
 
   document.querySelector('#themeSelect')?.addEventListener('change', event => {
     setThemePreference(event.target.value);
+    render(false);
+  });
+
+  document.querySelector('#financialRoundSelect')?.addEventListener('change', event => {
+    financialRound = Number(event.target.value);
     render(false);
   });
 
@@ -337,7 +352,13 @@ function bindEvents() {
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', async () => {
     const action = button.dataset.action;
     try {
-      if (action === 'goto-decisions') {
+      if (action === 'toggle-sidebar') {
+        sidebarCollapsed = !sidebarCollapsed;
+        localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? '1' : '0');
+        render(false);
+        return;
+
+      } else if (action === 'goto-decisions') {
         activeTab = 'decisions';
 
       } else if (action === 'load-r1') {
@@ -369,6 +390,7 @@ function bindEvents() {
           applyRoomPayload(latest);
         }
         simulateRound(state);
+        financialRound = state.currentRound;
         state.roundDeadlineAt = state.mode === 'competition' && state.currentRound < state.maxRounds
           ? new Date(Date.now() + state.timerSeconds * 1000).toISOString()
           : null;

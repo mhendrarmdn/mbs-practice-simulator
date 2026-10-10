@@ -1,80 +1,131 @@
-# MBS Practice Simulator v0.9
+# MBS Practice Simulator v1.0
 
 Independent web-based training simulator for Macro Business Simulation / TopBoss-style competition practice.
 
-> This is a **training twin**, not an official TopBoss clone. The app separates observed calibration anchors, workbook-explicit mechanics, and transparent decision-support approximations.
+> This is a **training twin**, not an official TopBoss clone. v1.0 focuses on UI/workflow parity and a more complete financial-performance surface while keeping proprietary formulas explicitly outside the model boundary.
 
-## v0.9 focus — Robust Optimizer
+## v1.0 focus — TopBoss Workflow Parity + Full Financial Statements
 
-v0.9 adds a scenario-based candidate search layer on top of the existing Strategy Lab.
+### Collapsible sidebar
+- added a hamburger button in the top bar
+- sidebar can be hidden and shown again at any time
+- desktop supports compact icon-only navigation
+- mobile/tablet uses an off-canvas sidebar with a backdrop
+- sidebar state is remembered in the browser
 
-The optimizer does **not** claim to know the official TopBoss optimum. It ranks a bounded set of transparent candidate drafts inside the independent practice engine.
+### TopBoss-style navigation grouping
+Navigation is now grouped more like the original website workflow:
 
-### What it does
+- Management
+  - Management Dashboard
+  - Business Decisions
+  - Decision History
+- Status
+  - Status / Business Status
+- Analysis
+  - Operations Analysis
+  - Financial Ratio
+  - Decision Matrices
+- Performance
+  - Financial Statement
+  - Leaderboard
+- Practice Labs
+  - Competition Center
+  - Workbook Lab
+  - Strategy Lab
+  - Robust Optimizer
+  - Scenario Center
+  - Model Transparency
+  - Room & Setup
 
-For each candidate draft, the app evaluates the same decision set across:
+### Full Financial Statement page
+The former snapshot cards are replaced by a round-selectable reconciliation page with:
 
-- Controlled Baseline
-- Demand Boom
-- Economic Slowdown
-- Raw Material Shock
-- Equipment Disruption
+- **Balance Sheet**
+- **Cash Flow**
+- **Income Statement**
 
-It then combines:
+The page now exposes line items such as:
 
-- Strategy Alignment
-- average Practice NPV delta
-- worst-case Practice NPV delta
-- liquidity safety
-- profit
-- market-share behavior
-- scenario volatility
+- Cash
+- Raw Material Inventory
+- Finished Goods Inventory
+- Current Assets
+- Fixed & Other Assets
+- Overdraft
+- Owners' Equity
+- Revenue
+- Cash Expenditure
+- Raw Material Purchase
+- Equipment Investment
+- Dividend
+- Cost of Goods Sold
+- Gross Profit
+- Marketing / R&D / Maintenance expense
+- Management expense
+- Warehouse expense
+- Purchasing expense
+- Depreciation
+- Operating Profit
+- Interest
+- Tax
+- Net Earnings
 
-### Risk profiles
+### Financial Ratio page
+Added a dedicated diagnostic page for:
 
-Users can choose:
+- Current Ratio
+- Quick Ratio
+- Inventory Turnover
+- Fixed Asset Turnover
+- Total Asset Turnover
+- Debt Ratio
+- Times Interest Earned
+- Net Profit Margin
+- Basic Profit Margin
+- ROA
+- ROE
+- ROCE
 
-- Conservative
-- Balanced
-- Aggressive
+### Round-by-round financial history
+Financial Statements and Ratios include a round selector so the user can inspect previous rounds rather than only the latest result.
 
-The risk profile changes how heavily the ranking weights downside protection versus upside.
+### Excel export
+The existing workbook export now also includes:
 
-### Recommended draft
+- Balance Sheet sheet
+- Cash Flow sheet
+- Income Statement sheet
+- Financial Ratios sheet
 
-The Robust Optimizer shows:
+## Evidence basis
 
-- Robust Score
-- improvement vs Current Draft
-- average Strategy Alignment
-- average Practice NPV delta
-- worst Practice NPV delta
-- Liquidity Safety
-- scenario volatility
-- candidate ranking
-- per-scenario result table
+The v1.0 parity pass was grounded in the previously extracted TopBoss walkthrough notes and Student Workbook workflow:
 
-The Captain can apply the recommended candidate directly to the shared decision draft.
+`Decision History → Status → Analysis → Financial Statement → next decision`
 
-### Export
+The previously supplied walkthrough notes identify the TopBoss Financial Statement page as a final reconciliation view containing Balance Sheet, Cash Flow, and Income Statement, and identify the full Financial Ratio diagnostic set.
 
-The optimizer can export a Markdown brief containing the recommended decision set and its scenario robustness profile.
+## Important source limitation
+
+The originally supplied raw TopBoss screen-recording MP4 is not currently retrievable by the active file runtime, so v1.0 does **not** claim a new frame-by-frame video audit in this update. The parity work uses the detailed walkthrough/extraction already recovered from that earlier material plus the Student Workbook.
 
 ## Existing features retained
 
-- v0.8 Strategy Lab and Excel Workbook Export
-- v0.7 Workbook R0–R5 + R6 Planning Lab
+- v0.9 Robust Optimizer
+- v0.8 Strategy Lab + Excel export
+- v0.7 Workbook R0–R5 + non-simulated R6 plan
 - v0.6 Competition Command Center
-- v0.5 workbook-aligned operations and Decision Matrices
-- v0.4 Decision Intelligence and Calibration Lab
+- v0.5 workbook-aligned operations mechanics
+- v0.4 Decision Intelligence
 - v0.3 shared Team Room
-- Floot-style cockpit UI
-- adaptive AI and scenario system
+- Dark / Light / System themes
+- Training / Competition / Sandbox / Workbook modes
 
 ## Supabase
 
-No new Supabase migration is required for v0.9.
+No new Supabase migration is required for v1.0.
 
-## Important limitation
+## Model boundary
 
-The optimizer searches only the candidate decision sets explicitly generated by the training model. It is not a mathematical proof of global optimality, does not use proprietary TopBoss formulas, and cannot guarantee official competition performance.
+The expanded financial statements are generated from the transparent practice engine. For legacy rounds that were saved before line-item financial data existed, detail is reconstructed from stored round history and marked as derived. The simulator still does not claim the proprietary TopBoss accounting engine or official NPV equation.

@@ -7,6 +7,7 @@ import { competitionSnapshot, presentationBrief, strategyBrief, stressTestDraft 
 import { buildRound6Review, workbookStage } from './workbookLab.js';
 import { strategyAlignment, strategyComparison } from './strategySystem.js';
 import { robustOptimize } from './robustOptimizer.js';
+import { availableFinancialRounds, financialForRound } from './financialStatement.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
@@ -18,6 +19,7 @@ const NAV_ICONS = {
   decisions: '⌁',
   status: '◎',
   analysis: '▤',
+  ratios: '%',
   financials: '◫',
   history: '↺',
   matrix: '▥',
@@ -28,7 +30,11 @@ const NAV_ICONS = {
 };
 
 function navButton(id, label, active) {
-  return `<button data-tab="${id}" class="${active === id ? 'active' : ''}"><span class="nav-ico">${NAV_ICONS[id] || '•'}</span><span>${label}</span></button>`;
+  return `<button data-tab="${id}" class="${active === id ? 'active' : ''}" title="${esc(label)}"><span class="nav-ico">${NAV_ICONS[id] || '•'}</span><span class="nav-text">${label}</span></button>`;
+}
+
+function navGroup(label, items, active) {
+  return `<div class="nav-group"><span class="nav-group-label">${label}</span>${items.map(([id,text])=>navButton(id,text,active)).join('')}</div>`;
 }
 
 function cardHead(eyebrow, title, icon = '') {
@@ -49,48 +55,65 @@ function roomPresence(state) {
     </div>`).join('') : '<div class="empty">Presence belum tersedia. Jalankan schema v0.3 untuk member list.</div>'}</div>`;
 }
 
-export function shell(state, activeTab, themePreference) {
+export function shell(state, activeTab, themePreference, ui = {}) {
   const timer = Math.max(0, Number(state.timerRemaining || 0));
   const mm = String(Math.floor(timer / 60)).padStart(2, '0');
   const ss = String(timer % 60).padStart(2, '0');
   const session = getRoomSession();
   const online = (state.roomMembers || []).filter(member => member.online).length;
+  const collapsed = Boolean(ui.sidebarCollapsed);
 
   return `
-    <div class="app-shell">
-      <aside class="sidebar">
+    <div class="app-shell ${collapsed ? 'sidebar-is-collapsed' : ''}">
+      <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.9</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.0</small></div>
+          <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Tutup sidebar" title="Tutup sidebar">‹</button>
         </div>
         <nav class="nav">
-          ${navButton('dashboard', 'Dashboard', activeTab)}
-          ${navButton('competition', 'Competition Center', activeTab)}
-          ${navButton('workbook', 'Workbook Lab', activeTab)}
-          ${navButton('strategy', 'Strategy Lab', activeTab)}
-          ${navButton('optimizer', 'Robust Optimizer', activeTab)}
-          ${navButton('decisions', 'Business Decisions', activeTab)}
-          ${navButton('status', 'Status', activeTab)}
-          ${navButton('analysis', 'Analysis', activeTab)}
-          ${navButton('financials', 'Financial Statements', activeTab)}
-          ${navButton('history', 'Decision History', activeTab)}
-          ${navButton('matrix', 'Decision Matrices', activeTab)}
-          ${navButton('leaderboard', 'Leaderboard', activeTab)}
-          ${navButton('scenarios', 'Scenario Center', activeTab)}
-          ${navButton('model', 'Model Transparency', activeTab)}
-          ${navButton('setup', 'Room & Setup', activeTab)}
+          ${navGroup('MANAGEMENT', [
+            ['dashboard','Management Dashboard'],
+            ['decisions','Business Decisions'],
+            ['history','Decision History']
+          ], activeTab)}
+          ${navGroup('STATUS', [
+            ['status','Status / Business Status']
+          ], activeTab)}
+          ${navGroup('ANALYSIS', [
+            ['analysis','Operations Analysis'],
+            ['ratios','Financial Ratio'],
+            ['matrix','Decision Matrices']
+          ], activeTab)}
+          ${navGroup('PERFORMANCE', [
+            ['financials','Financial Statement'],
+            ['leaderboard','Leaderboard']
+          ], activeTab)}
+          ${navGroup('PRACTICE LABS', [
+            ['competition','Competition Center'],
+            ['workbook','Workbook Lab'],
+            ['strategy','Strategy Lab'],
+            ['optimizer','Robust Optimizer'],
+            ['scenarios','Scenario Center'],
+            ['model','Model Transparency'],
+            ['setup','Room & Setup']
+          ], activeTab)}
         </nav>
         <div class="sidebar-bottom">
           <strong>TRAINING MODEL</strong>
           <p>Independent practice engine. Proprietary TopBoss formulas remain unknown.</p>
         </div>
       </aside>
+      <button class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Tutup sidebar"></button>
 
       <section class="workspace">
         <header class="topbar">
-          <div class="top-left">
-            <strong>${esc(state.teamName)}</strong>
-            <small>ROUND ${state.currentRound} / ${state.maxRounds}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
+          <div class="top-left top-left-with-menu">
+            <button class="hamburger" data-action="toggle-sidebar" aria-label="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}" title="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}"><span></span><span></span><span></span></button>
+            <div>
+              <strong>${esc(state.teamName)}</strong>
+              <small>ROUND ${state.currentRound} / ${state.maxRounds}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
+            </div>
           </div>
           <div class="top-actions">
             <select id="modeSelect" class="top-control" aria-label="Simulation mode" ${state.roomCode && !isCaptain() ? 'disabled' : ''}>
@@ -593,14 +616,149 @@ export function analysisView(state) {
     </section>`;
 }
 
-export function financialsView(state) {
-  const user = state.companies.find(company => company.isUser);
-  return `<div class="page-head"><div><div class="eyebrow">FINAL RECONCILIATION</div><h1>Financial Statements</h1><p class="subtitle">Gunakan halaman ini sebagai pengecekan final setiap ronde.</p></div></div>
-    <section class="triple-grid">
-      <div class="card">${cardHead('FINANCIAL','Income Statement')}${statsList([['Revenue',money(user.revenue)],['Unit Cost',money(user.unitCost)],['Net Earnings',money(user.netProfit),user.netProfit>=0?'good':'bad'],['Profit Margin',pct(user.profitMargin)]])}</div>
-      <div class="card">${cardHead('FINANCIAL','Balance Sheet Snapshot')}${statsList([['Cash',money(user.cash)],['Overdraft',money(user.overdraft),user.overdraft?'bad':''],["Owners' Equity",money(user.equity)],['Current Ratio',fixed(user.currentRatio,2)+'x']])}</div>
-      <div class="card">${cardHead('FINANCIAL','Equity Metrics')}${statsList([['ROE',pct(user.roe)],['Market Share',pct(user.marketShare)],['Practice NPV',money(user.npv)],['Balanced Score',fixed(user.balancedScore,1)]])}</div>
-    </section>`;
+function financialRows(rows) {
+  return `<div class="fs-lines">${rows.map(row => {
+    if (row.section) return `<div class="fs-section">${esc(row.section)}</div>`;
+    const cls = [row.total ? 'fs-total' : '', row.subtotal ? 'fs-subtotal' : '', row.indent ? 'fs-indent' : '', row.tone || ''].filter(Boolean).join(' ');
+    return `<div class="fs-line ${cls}"><span>${esc(row.label)}</span><strong>${row.value}</strong></div>`;
+  }).join('')}</div>`;
+}
+
+function ratioValue(value, style = 'x') {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  if (style === 'pct') return pct(Number(value));
+  return fixed(Number(value), 2) + 'x';
+}
+
+export function financialsView(state, selectedRound = null) {
+  const rounds = availableFinancialRounds(state);
+  const targetRound = rounds.includes(Number(selectedRound)) ? Number(selectedRound) : state.currentRound;
+  const data = financialForRound(state, targetRound) || financialForRound(state, rounds.at(-1));
+  if (!data) return '<div class="empty">Financial statement belum tersedia.</div>';
+
+  const { statement: f, item, isDerived } = data;
+  const bs = f.balanceSheet;
+  const cf = f.cashFlow;
+  const inc = f.incomeStatement;
+  const reconciliationGap = Math.abs((bs.totalAssets || 0) - (bs.totalLiabilitiesAndEquity || 0));
+
+  return `
+    <div class="page-head">
+      <div><div class="eyebrow">PERFORMANCE → FINANCIAL STATEMENT</div><h1>Financial Statement</h1><p class="subtitle">Final reconciliation page per round: Balance Sheet + Cash Flow + Income Statement.</p></div>
+      <div class="actions">
+        <label class="round-picker">Round
+          <select id="financialRoundSelect">${rounds.map(round=>`<option value="${round}" ${round===data.round?'selected':''}>Round ${round}</option>`).join('')}</select>
+        </label>
+      </div>
+    </div>
+
+    <section class="financial-summary-strip">
+      ${metric('Revenue', money(item.revenue), 'Financial result')}
+      ${metric('Net Earnings', money(item.netProfit), 'Income Statement', item.netProfit>=0?'good':'bad')}
+      ${metric('Cash', money(item.cash), item.overdraft?'Overdraft '+money(item.overdraft):'No overdraft', item.overdraft?'bad':'')}
+      ${metric("Owners' Equity", money(item.equity), 'Balance Sheet')}
+      ${metric('Current Ratio', fixed(item.currentRatio,2)+'x', 'Liquidity')}
+      ${metric('Reconciliation', reconciliationGap < 1 ? 'BALANCED' : money(reconciliationGap), isDerived?'Legacy/derived detail':'Practice-model detail', reconciliationGap<1?'good':'warn')}
+    </section>
+
+    <div class="topboss-breadcrumb">Performance <span>›</span> Financial Statement <span>›</span> Round ${data.round}</div>
+
+    <section class="financial-statement-grid">
+      <article class="card financial-paper">
+        ${cardHead('BALANCE SHEET','Balance Sheet','BS')}
+        ${financialRows([
+          {section:'ASSETS'},
+          {label:'Cash',value:money(bs.cash),indent:true},
+          {label:'Raw Material Inventory',value:money(bs.rawMaterialInventory),indent:true},
+          {label:'Finished Goods Inventory',value:money(bs.finishedGoodsInventory),indent:true},
+          {label:'Current Assets',value:money(bs.currentAssets),subtotal:true},
+          {label:'Fixed & Other Assets',value:money(bs.fixedAndOtherAssets),indent:true},
+          {label:'TOTAL ASSETS',value:money(bs.totalAssets),total:true},
+          {section:'LIABILITIES & EQUITY'},
+          {label:'Operating Liabilities',value:money(bs.operatingLiabilities),indent:true},
+          {label:'Overdraft',value:money(bs.overdraft),indent:true,tone:bs.overdraft>0?'bad':''},
+          {label:'Total Liabilities',value:money(bs.totalLiabilities),subtotal:true},
+          {label:"Owners' Equity",value:money(bs.ownersEquity),subtotal:true},
+          {label:'TOTAL LIABILITIES & EQUITY',value:money(bs.totalLiabilitiesAndEquity),total:true}
+        ])}
+      </article>
+
+      <article class="card financial-paper">
+        ${cardHead('CASH FLOW','Cash Flow','CF')}
+        ${financialRows([
+          {label:'Beginning Cash Balance',value:money(cf.beginningCash)},
+          {label:'Revenue',value:money(cf.revenue),tone:'good'},
+          {label:'Cash Expenditure',value:'('+money(cf.cashExpenditure)+')'},
+          {label:'Operating Cash Flow',value:money(cf.operatingCashFlow),subtotal:true,tone:cf.operatingCashFlow>=0?'good':'bad'},
+          {label:'Raw Material Purchase',value:'('+money(cf.rawMaterialPurchase)+')'},
+          {label:'Equipment Investment',value:'('+money(cf.equipmentInvestment)+')'},
+          {label:'Dividend',value:'('+money(cf.dividend)+')'},
+          {label:'Cash Before Financing',value:money(cf.cashBeforeFinancing),subtotal:true,tone:cf.cashBeforeFinancing>=0?'good':'bad'},
+          {label:'Overdraft Financing',value:money(cf.overdraft),tone:cf.overdraft>0?'bad':''},
+          {label:'ENDING CASH BALANCE',value:money(cf.endingCash),total:true}
+        ])}
+      </article>
+
+      <article class="card financial-paper">
+        ${cardHead('INCOME STATEMENT','Income Statement','IS')}
+        ${financialRows([
+          {label:'Revenue',value:money(inc.revenue)},
+          {label:'Cost of Goods Sold',value:'('+money(inc.costOfGoodsSold)+')'},
+          {label:'Gross Profit',value:money(inc.grossProfit),subtotal:true,tone:inc.grossProfit>=0?'good':'bad'},
+          {section:'OPERATING EXPENSES'},
+          {label:'Marketing Expense',value:money(inc.marketingExpense),indent:true},
+          {label:'R&D Expense',value:money(inc.rdExpense),indent:true},
+          {label:'Maintenance Expense',value:money(inc.maintenanceExpense),indent:true},
+          {label:'Management Expense',value:money(inc.managementExpense),indent:true},
+          {label:'Warehouse Expense',value:money(inc.warehouseExpense),indent:true},
+          {label:'Purchasing Expense',value:money(inc.purchasingExpense),indent:true},
+          {label:'Depreciation',value:money(inc.depreciation),indent:true},
+          {label:'Total Operating Expenses',value:money(inc.operatingExpenses),subtotal:true},
+          {label:'Operating Profit',value:money(inc.operatingProfit),subtotal:true,tone:inc.operatingProfit>=0?'good':'bad'},
+          {label:'Interest Expense',value:'('+money(inc.interestExpense)+')'},
+          {label:'Earnings Before Tax',value:money(inc.earningsBeforeTax),subtotal:true},
+          {label:'Tax',value:'('+money(inc.tax)+')'},
+          {label:'NET EARNINGS',value:money(inc.netEarnings),total:true,tone:inc.netEarnings>=0?'good':'bad'}
+        ])}
+      </article>
+    </section>
+
+    <div class="callout financial-source-note">${isDerived
+      ? 'Ronde lama belum menyimpan full line-item breakdown; detail di atas direkonstruksi dari history dan training-model accounting relationships.'
+      : 'Line items direkonsiliasi dari engine ronde ini. Ini tetap practice-model financial statement, bukan proprietary TopBoss accounting engine.'}</div>
+  `;
+}
+
+export function ratiosView(state, selectedRound = null) {
+  const rounds = availableFinancialRounds(state);
+  const targetRound = rounds.includes(Number(selectedRound)) ? Number(selectedRound) : state.currentRound;
+  const data = financialForRound(state, targetRound) || financialForRound(state, rounds.at(-1));
+  if (!data) return '<div class="empty">Financial ratios belum tersedia.</div>';
+  const r = data.statement.ratios;
+  return `
+    <div class="page-head">
+      <div><div class="eyebrow">ANALYSIS → FINANCIAL RATIO</div><h1>Financial Ratio</h1><p class="subtitle">Diagnostic ratios untuk membaca akibat gabungan seluruh keputusan, bukan decision input.</p></div>
+      <div class="actions"><label class="round-picker">Round <select id="financialRoundSelect">${rounds.map(round=>`<option value="${round}" ${round===data.round?'selected':''}>Round ${round}</option>`).join('')}</select></label></div>
+    </div>
+    <div class="topboss-breadcrumb">Analysis <span>›</span> Financial Ratio <span>›</span> Round ${data.round}</div>
+    <section class="ratio-grid">
+      ${[
+        ['Current Ratio',ratioValue(r.currentRatio)],
+        ['Quick Ratio',ratioValue(r.quickRatio)],
+        ['Inventory Turnover',ratioValue(r.inventoryTurnover)],
+        ['Fixed Asset Turnover',ratioValue(r.fixedAssetTurnover)],
+        ['Total Asset Turnover',ratioValue(r.totalAssetTurnover)],
+        ['Debt Ratio',ratioValue(r.debtRatio,'pct')],
+        ['Times Interest Earned',ratioValue(r.timesInterestEarned)],
+        ['Net Profit Margin',ratioValue(r.netProfitMargin,'pct')],
+        ['Basic Profit Margin',ratioValue(r.basicProfitMargin,'pct')],
+        ['ROA',ratioValue(r.roa,'pct')],
+        ['ROE',ratioValue(r.roe,'pct')],
+        ['ROCE',ratioValue(r.roce,'pct')]
+      ].map(([label,value])=>`<div class="ratio-card"><span>${label}</span><strong>${value}</strong></div>`).join('')}
+    </section>
+    <div class="callout">TopBoss-style diagnostic set: Current Ratio, Quick Ratio, Inventory Turnover, Fixed/Total Asset Turnover, Debt Ratio, Times Interest Earned, Net/Basic Profit Margin, ROA, ROE, dan ROCE.</div>
+  `;
 }
 
 export function historyView(state) {
@@ -737,7 +895,7 @@ export function setupView(state) {
     </div>`;
 }
 
-export function bodyForTab(state, activeTab) {
+export function bodyForTab(state, activeTab, ui = {}) {
   switch (activeTab) {
     case 'competition': return competitionView(state);
     case 'workbook': return workbookView(state);
@@ -746,7 +904,8 @@ export function bodyForTab(state, activeTab) {
     case 'decisions': return decisionsView(state);
     case 'status': return statusView(state);
     case 'analysis': return analysisView(state);
-    case 'financials': return financialsView(state);
+    case 'ratios': return ratiosView(state, ui.financialRound);
+    case 'financials': return financialsView(state, ui.financialRound);
     case 'history': return historyView(state);
     case 'matrix': return matrixView(state);
     case 'leaderboard': return leaderboardView(state);

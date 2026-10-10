@@ -42,7 +42,8 @@ export function snapshot(company, round, decision, economy, operational = {}) {
     roe: company.roe,
     profitMargin: company.profitMargin,
     npv: company.npv,
-    balancedScore: company.balancedScore
+    balancedScore: company.balancedScore,
+    financial: deepClone(company.financial || null)
   };
 }
 
@@ -74,6 +75,7 @@ export function baselineUser(team = 'MARKOWITZ') {
     profitMargin: 0.1091,
     npv: 10710552,
     balancedScore: 72,
+    financial: null,
     lastDecision: {
       price: 6.40,
       marketing: 150000,
@@ -130,6 +132,7 @@ function botBaseline(name, strategy, index) {
   company.balancedScore = 58 + random() * 27;
   company.roe = company.netProfit / Math.max(company.equity, 1);
   company.profitMargin = company.netProfit / Math.max(company.revenue, 1);
+  company.financial = null;
   company.history = [snapshot(company, 0, null, {
     priceIndex: 100,
     growth: 1,
@@ -149,7 +152,7 @@ function botBaseline(name, strategy, index) {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.9.0',
+    version: '1.0.0',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -204,7 +207,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.9.0';
+  state.version = '1.0.0';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
