@@ -1,26 +1,48 @@
 # Changelog
 
-## v0.9.0 — Robust Optimizer
+## v1.0.0 — TopBoss Workflow Parity + Full Financials
 
-### Robust Decision Search
-- Added Robust Optimizer page.
-- Generates a transparent set of candidate management drafts.
-- Tests each candidate across five macro scenarios.
-- Ranks candidates using selected Strategy Goal and risk profile.
-- Added Conservative / Balanced / Aggressive optimizer profiles.
-- Added average and worst-case Practice NPV analysis.
-- Added liquidity-safety score.
-- Added scenario-volatility metric.
-- Added top-candidate ranking.
-- Added per-scenario robustness table.
-- Added Apply Recommended Draft action.
-- Added optimizer Markdown export.
+### Navigation / sidebar
+- Added hamburger menu.
+- Sidebar can be collapsed and reopened.
+- Desktop supports compact icon-only sidebar.
+- Mobile uses an off-canvas sidebar + scrim.
+- Added grouped Management / Status / Analysis / Performance navigation.
+- Sidebar preference persists locally.
 
-### Compatibility
-- Migrates v0.1–v0.8 browser saves to v0.9.
-- Works with existing v0.3 shared-room JSON state.
-- No new Supabase migration.
-- Workbook R6 remains planning-only and is intentionally not optimized through simulated R6 outcomes.
+### Financial Statement
+- Replaced simplified snapshot cards with three full panels:
+  - Balance Sheet
+  - Cash Flow
+  - Income Statement
+- Added round selector.
+- Added reconciliation indicator.
+- Added detailed operating expense breakdown.
+- Added cash financing / overdraft flow.
+- Added inventory and fixed/other asset presentation.
+
+### Financial Ratio
+- Added dedicated Financial Ratio page.
+- Added Current Ratio, Quick Ratio, Inventory Turnover, Fixed Asset Turnover, Total Asset Turnover, Debt Ratio, Times Interest Earned, Net Profit Margin, Basic Profit Margin, ROA, ROE, ROCE.
+- Added round selector.
+
+### Engine / history
+- New simulated rounds persist line-item financial objects.
+- Legacy saved rounds fall back to transparent reconstructed detail.
+- Browser saves migrate from v0.1–v0.9 to v1.0.
+
+### Excel
+- Added Balance Sheet, Cash Flow, Income Statement, and Financial Ratios worksheets.
+
+### Evidence / parity
+- Implemented the previously extracted TopBoss workflow and financial-page structure.
+- Raw screen-recording MP4 could not be reopened in the current runtime, so this release does not claim a new frame-level video audit.
+
+### Database
+- No new Supabase schema migration required.
+
+## v0.9.0
+Robust Optimizer.
 
 ## v0.8.0
 Strategy Lab + Excel Workbook Export.
@@ -28,11 +50,5 @@ Strategy Lab + Excel Workbook Export.
 ## v0.7.0
 Workbook R0–R5 + Round 6 Planning Lab.
 
-## v0.6.0
-Competition Command Center.
-
-## v0.5.0
-Workbook-aligned operations fidelity and Decision Matrices.
-
 ## Model boundary
-Robust Optimizer is a candidate-ranking heuristic inside the independent practice engine, not an official TopBoss optimizer.
+v1.0 improves interface/workflow fidelity, not proprietary-formula certainty.

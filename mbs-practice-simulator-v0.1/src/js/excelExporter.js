@@ -3,6 +3,7 @@ import { decisionMatrices } from './decisionMatrix.js';
 import { buildRound6Review } from './workbookLab.js';
 import { strategyAlignment } from './strategySystem.js';
 import { userCompany } from './state.js';
+import { availableFinancialRounds, financialForRound } from './financialStatement.js';
 
 function addSheet(book, name, rows, widths = []) {
   const sheet = Array.isArray(rows?.[0])
@@ -97,6 +98,15 @@ function matrixRows(matrix) {
   ];
 }
 
+
+function financialRows(state, section) {
+  return availableFinancialRounds(state).map(round => {
+    const data = financialForRound(state, round);
+    const f = data?.statement?.[section] || {};
+    return { Round: `R${round}`, ...f };
+  });
+}
+
 export function exportWorkbookExcel(state) {
   const book = XLSX.utils.book_new();
   const user = userCompany(state);
@@ -124,6 +134,10 @@ export function exportWorkbookExcel(state) {
   ], [24, 70]);
 
   addSheet(book, 'Round History', roundRows(state), Array(35).fill(18));
+  addSheet(book, 'Balance Sheet', financialRows(state, 'balanceSheet'), Array(14).fill(20));
+  addSheet(book, 'Cash Flow', financialRows(state, 'cashFlow'), Array(14).fill(20));
+  addSheet(book, 'Income Statement', financialRows(state, 'incomeStatement'), Array(18).fill(20));
+  addSheet(book, 'Financial Ratios', financialRows(state, 'ratios'), Array(16).fill(20));
 
   addSheet(book, 'Strategy Alignment', [
     ['Selected Goal', strategy.goal.label],

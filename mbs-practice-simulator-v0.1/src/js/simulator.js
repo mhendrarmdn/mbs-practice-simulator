@@ -150,6 +150,8 @@ export function simulateRound(state) {
   state.companies.forEach((company, index) => {
     const p = provisional[index];
     const decision = p.decision;
+    const beginningCash = company.cash;
+    const beginningEquity = company.equity;
     const share = p.attractiveness / totalAttractiveness;
     const potentialDemand = marketSize * share;
     const sales = Math.min(potentialDemand, p.availableFinishedGoods);
@@ -167,25 +169,51 @@ export function simulateRound(state) {
       finishedGoodsEnd * directUnitCost * 0.012;
     const purchasingExpense = purchaseCost * 0.03;
     const interest = company.overdraft * 0.05;
-    const fixedExpense =
-      decision.marketing + decision.rd + decision.maintenance + 400000 +
-      depreciation + warehouse + purchasingExpense + interest;
+    const managementExpense = 400000;
 
-    const unitCost = directUnitCost + fixedExpense / Math.max(sales, 1);
+    const costOfGoodsSold = sales * directUnitCost;
     const revenue = sales * decision.price;
-    const preTax = revenue - sales * unitCost;
+    const grossProfit = revenue - costOfGoodsSold;
+    const operatingExpenses =
+      decision.marketing + decision.rd + decision.maintenance + managementExpense +
+      depreciation + warehouse + purchasingExpense;
+    const operatingProfit = grossProfit - operatingExpenses;
+    const preTax = operatingProfit - interest;
     const tax = preTax > 0 ? preTax * 0.29 : 0;
     const netProfit = preTax - tax;
+    const fixedExpense = operatingExpenses + interest;
+    const unitCost = directUnitCost + fixedExpense / Math.max(sales, 1);
+
+    const cashExpenditure = Math.max(0, revenue - netProfit - depreciation);
+    const operatingCashFlow = revenue - cashExpenditure;
     const cashBeforeFinancing =
-      company.cash + netProfit + depreciation - purchaseCost -
+      beginningCash + operatingCashFlow - purchaseCost -
       decision.equipment - decision.dividend;
     const cash = Math.max(0, cashBeforeFinancing);
     const overdraft = Math.max(0, -cashBeforeFinancing);
-    const equity = Math.max(1, company.equity + netProfit - decision.dividend);
-    const currentAssets = cash + p.rawMaterialEnd * MATERIAL_PRICE + finishedGoodsEnd * directUnitCost;
-    const currentRatio = currentAssets / Math.max(750000 + overdraft, 1);
-    const roe = netProfit / Math.max(company.equity, 1);
+    const equity = Math.max(1, beginningEquity + netProfit - decision.dividend);
+
+    const rawMaterialInventoryValue = p.rawMaterialEnd * MATERIAL_PRICE * economy.rawIndex;
+    const finishedGoodsInventoryValue = finishedGoodsEnd * directUnitCost;
+    const currentAssets = cash + rawMaterialInventoryValue + finishedGoodsInventoryValue;
+    const operatingLiabilities = 750000;
+    const currentLiabilities = operatingLiabilities + overdraft;
+    const totalLiabilities = currentLiabilities;
+    const totalAssets = equity + totalLiabilities;
+    const fixedAndOtherAssets = Math.max(0, totalAssets - currentAssets);
+
+    const currentRatio = currentAssets / Math.max(currentLiabilities, 1);
+    const quickRatio = cash / Math.max(currentLiabilities, 1);
+    const inventoryTurnover = costOfGoodsSold / Math.max(rawMaterialInventoryValue + finishedGoodsInventoryValue, 1);
+    const fixedAssetTurnover = revenue / Math.max(fixedAndOtherAssets, 1);
+    const totalAssetTurnover = revenue / Math.max(totalAssets, 1);
+    const debtRatio = totalLiabilities / Math.max(totalAssets, 1);
+    const timesInterestEarned = interest > 0 ? operatingProfit / interest : null;
+    const roe = netProfit / Math.max(beginningEquity, 1);
     const profitMargin = netProfit / Math.max(revenue, 1);
+    const basicProfitMargin = operatingProfit / Math.max(revenue, 1);
+    const roa = netProfit / Math.max(totalAssets, 1);
+    const roce = operatingProfit / Math.max(equity + totalLiabilities - cash, 1);
     const discount = Math.pow(1 + DISCOUNT_RATE, round);
     const npv =
       company.npv +
@@ -221,6 +249,66 @@ export function simulateRound(state) {
       profitMargin,
       npv,
       balancedScore,
+      financial: {
+        source: 'practice-model',
+        balanceSheet: {
+          cash,
+          rawMaterialInventory: rawMaterialInventoryValue,
+          finishedGoodsInventory: finishedGoodsInventoryValue,
+          currentAssets,
+          fixedAndOtherAssets,
+          totalAssets,
+          operatingLiabilities,
+          overdraft,
+          totalLiabilities,
+          ownersEquity: equity,
+          totalLiabilitiesAndEquity: totalLiabilities + equity
+        },
+        cashFlow: {
+          beginningCash,
+          revenue,
+          cashExpenditure,
+          operatingCashFlow,
+          rawMaterialPurchase: purchaseCost,
+          equipmentInvestment: decision.equipment,
+          dividend: decision.dividend,
+          cashBeforeFinancing,
+          overdraft,
+          endingCash: cash
+        },
+        incomeStatement: {
+          revenue,
+          costOfGoodsSold,
+          grossProfit,
+          marketingExpense: decision.marketing,
+          rdExpense: decision.rd,
+          maintenanceExpense: decision.maintenance,
+          managementExpense,
+          warehouseExpense: warehouse,
+          purchasingExpense,
+          depreciation,
+          operatingExpenses,
+          operatingProfit,
+          interestExpense: interest,
+          earningsBeforeTax: preTax,
+          tax,
+          netEarnings: netProfit
+        },
+        ratios: {
+          currentRatio,
+          quickRatio,
+          inventoryTurnover,
+          fixedAssetTurnover,
+          totalAssetTurnover,
+          debtRatio,
+          timesInterestEarned,
+          netProfitMargin: profitMargin,
+          basicProfitMargin,
+          roa,
+          roe,
+          roce
+        }
+      },
       lastDecision: decision
     });
 
