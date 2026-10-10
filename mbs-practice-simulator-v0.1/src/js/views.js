@@ -3,10 +3,12 @@ import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
 import { decisionMatrices } from './decisionMatrix.js';
+import { competitionSnapshot, presentationBrief, strategyBrief, stressTestDraft } from './competitionCenter.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
   dashboard: '▦',
+  competition: '◆',
   decisions: '⌁',
   status: '◎',
   analysis: '▤',
@@ -53,10 +55,11 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.5</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.6</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
+          ${navButton('competition', 'Competition Center', activeTab)}
           ${navButton('decisions', 'Business Decisions', activeTab)}
           ${navButton('status', 'Status', activeTab)}
           ${navButton('analysis', 'Analysis', activeTab)}
@@ -157,6 +160,100 @@ export function dashboardView(state) {
 
 function field(label, key, value, step, unit, disabled) {
   return `<div class="field"><label><span>${label}</span><span>${unit}</span></label><input type="number" data-decision="${key}" value="${Number(value).toFixed(key === 'price' ? 2 : 0)}" min="0" step="${step}" ${disabled ? 'disabled' : ''}></div>`;
+}
+
+
+function stressTone(row) {
+  if (row.netProfit < 0 || row.overdraft > 0) return 'bad';
+  if (row.netProfit > 0 && row.cash > 0) return 'good';
+  return 'warn';
+}
+
+export function competitionView(state) {
+  const snap = competitionSnapshot(state);
+  const stress = stressTestDraft(state);
+  const strategy = strategyBrief(state);
+  const brief = presentationBrief(state);
+  const user = snap.user;
+
+  return `
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">COMPETITION COMMAND CENTER</div>
+        <h1>Competition Center</h1>
+        <p class="subtitle">Gabungkan PDCA, current position, downside stress-test, dan presentation-ready evidence sebelum mengambil keputusan ronde berikutnya.</p>
+      </div>
+      <div class="actions">
+        <button class="secondary" data-action="export-competition-brief">⇩ Export Competition Brief</button>
+        <button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds ? 'disabled' : ''}>▶ Open Decision Room</button>
+      </div>
+    </div>
+
+    <section class="competition-kpis">
+      ${metric('Practice NPV Rank', '#'+snap.rank+' / '+snap.competitors, snap.npvGapToLeader ? 'Gap '+money(snap.npvGapToLeader)+' to leader' : 'Current leader')}
+      ${metric('Practice NPV', money(user.npv), 'Primary practice value proxy')}
+      ${metric('Cumulative Profit', money(snap.cumulativeProfit), 'Submitted rounds only', snap.cumulativeProfit >= 0 ? 'good' : 'bad')}
+      ${metric('Cumulative Dividend', money(snap.cumulativeDividend), 'Cash distributed')}
+      ${metric('ROE', pct(user.roe), 'Current round', user.roe >= 0 ? 'good' : 'bad')}
+      ${metric('Rounds Remaining', String(snap.roundsRemaining), state.currentRound >= state.maxRounds ? 'Game complete' : 'Horizon matters')}
+    </section>
+
+    <section class="pdca-strip">
+      <div><b>PLAN</b><span>Define objective, draft, and risk guardrails.</span></div>
+      <div><b>DO</b><span>Captain locks and submits one coherent decision set.</span></div>
+      <div><b>CHECK</b><span>Read market, operations, finance, and decision matrices.</span></div>
+      <div><b>ADJUST</b><span>Use debrief + stress test to change the next-round plan.</span></div>
+    </section>
+
+    <section class="dashboard-grid competition-main-grid">
+      <div class="card">
+        ${cardHead('DOWNSIDE / UPSIDE', 'Draft Scenario Stress Test', '◇')}
+        ${stress.available ? `
+          <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Profit</th><th>Cash</th><th>Overdraft</th><th>Share</th><th>Unit Cost</th><th>Δ Practice NPV</th></tr></thead>
+          <tbody>${stress.rows.map(row=>`<tr>
+            <td>${esc(row.label)}</td>
+            <td class="${stressTone(row)}">${money(row.netProfit)}</td>
+            <td>${money(row.cash)}</td>
+            <td class="${row.overdraft>0?'bad':''}">${money(row.overdraft)}</td>
+            <td>${pct(row.marketShare)}</td>
+            <td>${money(row.unitCost)}</td>
+            <td class="${row.npvDelta>=0?'good':'bad'}">${row.npvDelta>=0?'+':''}${money(row.npvDelta)}</td>
+          </tr>`).join('')}</tbody></table></div>
+          <div class="callout">Stress test menjalankan draft yang sama pada lima macro presets di salinan state terpisah. Ini adalah training-model scenario analysis, bukan forecast resmi.</div>
+        ` : '<div class="empty">Game sudah mencapai ronde maksimum; stress test next-round tidak tersedia.</div>'}
+      </div>
+
+      <div class="side-stack">
+        <div class="card">
+          ${cardHead('DECISION THESIS', 'Next-Round Priorities', '◎')}
+          <div class="brief-list numbered">${strategy.priorities.map((item,index)=>`<div><b>${index+1}</b><span>${esc(item)}</span></div>`).join('')}</div>
+        </div>
+        <div class="card">
+          ${cardHead('RISK CONTROL', 'Guardrails', '△')}
+          <div class="brief-list">${strategy.guardrails.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="presentation-grid">
+      <div class="card">
+        ${cardHead('PRESENTATION READY', 'Key Issues', '01')}
+        <div class="brief-list">${brief.keyIssues.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        ${cardHead('PRESENTATION READY', 'Analysis', '02')}
+        <div class="brief-list">${brief.analysis.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        ${cardHead('PRESENTATION READY', 'Evaluation', '03')}
+        <div class="brief-list">${brief.evaluation.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        ${cardHead('Q&A DRILL', 'Questions to Defend', '?')}
+        <div class="brief-list">${brief.qa.map(item=>`<div><b>Q</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+    </section>
+  `;
 }
 
 export function decisionsView(state) {
@@ -413,6 +510,7 @@ export function setupView(state) {
 
 export function bodyForTab(state, activeTab) {
   switch (activeTab) {
+    case 'competition': return competitionView(state);
     case 'decisions': return decisionsView(state);
     case 'status': return statusView(state);
     case 'analysis': return analysisView(state);

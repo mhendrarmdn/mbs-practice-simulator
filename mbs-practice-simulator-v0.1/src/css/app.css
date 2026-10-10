@@ -171,3 +171,21 @@ hr{border:0;border-top:1px solid var(--border);margin:17px 0}.empty{font-size:10
 .matrix-subtitle{padding:0 17px 12px;margin:0;color:var(--muted-foreground);font-size:10px;line-height:1.5}
 .matrix-card .table-wrap{border-top:1px solid var(--border)}
 .matrix-card tbody tr:hover{background:color-mix(in srgb,var(--primary) 5%,transparent)}
+
+
+/* v0.6 competition command center */
+.competition-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.pdca-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pdca-strip>div{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px}
+.pdca-strip b{display:block;font:700 9px 'IBM Plex Mono',monospace;color:var(--primary);letter-spacing:.08em}
+.pdca-strip span{display:block;margin-top:5px;color:var(--muted-foreground);font-size:9px;line-height:1.45}
+.competition-main-grid{margin-bottom:14px}
+.presentation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.brief-list{display:grid;gap:7px}
+.brief-list>div{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px}
+.brief-list b{font:700 9px 'IBM Plex Mono',monospace;color:var(--primary)}
+.brief-list span{font-size:10px;line-height:1.5;color:var(--muted-foreground)}
+.brief-list.numbered b{width:18px;height:18px;border-radius:999px;background:color-mix(in srgb,var(--primary) 14%,transparent);display:grid;place-items:center;color:var(--foreground)}
+@media(max-width:1180px){.competition-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.pdca-strip,.presentation-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.competition-kpis,.pdca-strip,.presentation-grid{grid-template-columns:1fr}}

@@ -148,7 +148,7 @@ function botBaseline(name, strategy, index) {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.5.0',
+    version: '0.6.0',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -200,7 +200,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.5.0';
+  state.version = '0.6.0';
   state.mode = ['training', 'competition', 'sandbox'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
