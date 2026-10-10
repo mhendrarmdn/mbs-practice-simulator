@@ -47,7 +47,13 @@ const NAV_ICONS = {
   businessStatus: 'B',
   productImage: 'P',
   marketShare: 'M',
-  revenue: '
+  revenue: 'R',
+  salesTrend: 'T',
+  operations: 'O',
+  costStructure: 'C',
+  competitive: 'A',
+  performanceTree: 'D'
+};
 
 function navButton(id, label, active) {
   return `<button data-tab="${id}" class="${active === id ? 'active' : ''}" title="${esc(label)}"><span class="nav-ico">${NAV_ICONS[id] || '•'}</span><span class="nav-text">${label}</span></button>`;
