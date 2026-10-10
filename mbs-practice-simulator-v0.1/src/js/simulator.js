@@ -1,10 +1,15 @@
 import { aiDecision } from './ai.js';
 import {
   BASE_MARKET_SIZE,
+  CAPACITY_AGING_RATE,
+  CAPACITY_COST_PER_UNIT,
   DISCOUNT_RATE,
+  MAINTENANCE_REFERENCE,
   MATERIAL_PER_UNIT,
   MATERIAL_PRICE,
-  SCENARIO_PRESETS
+  OVERTIME_LIMIT,
+  SCENARIO_PRESETS,
+  TARGET_CONVERSION_FACTOR
 } from './config.js';
 import { snapshot, userCompany } from './state.js';
 import { clamp, rngFrom } from './utils.js';
@@ -29,15 +34,8 @@ export function economyForRound(state, round) {
 
   if (presetKey === 'baseline') {
     return {
-      priceIndex: 100,
-      growth: 1,
-      seasonal: 1,
-      marketGrowth: 1,
-      rawIndex: 1,
-      demandFactor: 1,
-      capacityFactor: 1,
-      event: null,
-      presetKey
+      priceIndex: 100, growth: 1, seasonal: 1, marketGrowth: 1,
+      rawIndex: 1, demandFactor: 1, capacityFactor: 1, event: null, presetKey
     };
   }
 
@@ -67,15 +65,17 @@ export function economyForRound(state, round) {
 
   return {
     priceIndex: Math.round(rawIndex * 10000) / 100,
-    growth,
-    seasonal,
-    marketGrowth: growth,
-    rawIndex,
-    demandFactor: growth * seasonal,
-    capacityFactor,
-    event,
-    presetKey
+    growth, seasonal, marketGrowth: growth, rawIndex,
+    demandFactor: growth * seasonal, capacityFactor, event, presetKey
   };
+}
+
+function nextConversionFactor(current, maintenance) {
+  // Workbook establishes timing and an optimal reference of ~0.7, but not a proprietary response curve.
+  // This transparent practice curve makes current maintenance affect NEXT round.
+  const naturalDeterioration = 0.02;
+  const maintenanceRecovery = naturalDeterioration * clamp(maintenance / MAINTENANCE_REFERENCE, 0, 1.5);
+  return clamp(current - naturalDeterioration + maintenanceRecovery, 0.50, 0.75);
 }
 
 export function simulateRound(state) {
@@ -84,13 +84,17 @@ export function simulateRound(state) {
   const round = state.currentRound + 1;
   const economy = economyForRound(state, round);
   const decisions = state.companies.map(company => (
-    company.isUser
-      ? normalizeDecision(state.draft)
-      : normalizeDecision(aiDecision(company, round))
+    company.isUser ? normalizeDecision(state.draft) : normalizeDecision(aiDecision(company, round))
   ));
 
   const provisional = state.companies.map((company, index) => {
     const decision = decisions[index];
+    const beginCapacity = Math.max(100000, Number(company.capacity || 0));
+    const effectiveCapacity = beginCapacity * economy.capacityFactor;
+    const maxProductionCapacity = effectiveCapacity * (1 + OVERTIME_LIMIT);
+    const beginRawMaterial = Math.max(0, Number(company.rawMaterial || 0));
+    const conversionFactor = Number(company.conversionFactor || TARGET_CONVERSION_FACTOR);
+
     const quality = clamp(
       company.quality + 0.08 * Math.log1p(decision.rd / 200000) - 0.005,
       0.10, 0.95
@@ -99,20 +103,32 @@ export function simulateRound(state) {
       company.image + 0.043 * Math.log1p(decision.marketing / 150000) - 0.015,
       0.10, 0.95
     );
-    let capacity = company.capacity * (
-      0.965 + clamp(decision.maintenance / 400000, 0, 2) * 0.020
-    ) + (decision.equipment / 300000) * 12000;
-    capacity *= economy.capacityFactor;
-    capacity = Math.max(100000, capacity);
 
-    const rawMaterialAvailable = company.rawMaterial + decision.materialPurchase;
-    const production = Math.max(0, Math.min(
+    // Procurement ordered in this round is delivered at the END of this round / beginning of next.
+    // It cannot rescue a raw-material shortage for current production.
+    const materialLimitedProduction = beginRawMaterial / MATERIAL_PER_UNIT;
+    const requestedBeforeEfficiency = Math.max(0, Math.min(
       decision.production,
-      capacity,
-      rawMaterialAvailable / MATERIAL_PER_UNIT
+      maxProductionCapacity,
+      materialLimitedProduction
     ));
-    const rawMaterialEnd = Math.max(0, rawMaterialAvailable - production * MATERIAL_PER_UNIT);
+
+    // The exact proprietary conversion equation is unknown. Keep a bounded, transparent efficiency proxy
+    // centered on the workbook's ~0.7 reference.
+    const efficiencyIndex = clamp(conversionFactor / TARGET_CONVERSION_FACTOR, 0.80, 1.03);
+    const production = requestedBeforeEfficiency * efficiencyIndex;
+    const materialConsumed = Math.min(beginRawMaterial, production * MATERIAL_PER_UNIT);
+    const procurementDelivered = decision.materialPurchase;
+    const rawMaterialEnd = Math.max(0, beginRawMaterial - materialConsumed + procurementDelivered);
     const availableFinishedGoods = company.finishedGoods + production;
+
+    // Current maintenance/equipment decisions materialize NEXT round.
+    const nextCapacity = Math.max(
+      100000,
+      beginCapacity * (1 - CAPACITY_AGING_RATE) + decision.equipment / CAPACITY_COST_PER_UNIT
+    );
+    const conversionNext = nextConversionFactor(conversionFactor, decision.maintenance);
+
     const attractiveness = Math.exp(
       quality * 2.20 +
       image * 1.55 -
@@ -121,7 +137,11 @@ export function simulateRound(state) {
       Math.log1p(decision.rd / 220000) * 0.05
     );
 
-    return { decision, quality, image, capacity, production, rawMaterialEnd, availableFinishedGoods, attractiveness };
+    return {
+      decision, quality, image, beginCapacity, effectiveCapacity, maxProductionCapacity,
+      beginRawMaterial, procurementDelivered, rawMaterialEnd, production, availableFinishedGoods,
+      nextCapacity, conversionFactor, conversionNext, attractiveness
+    };
   });
 
   const totalAttractiveness = provisional.reduce((sum, item) => sum + item.attractiveness, 0);
@@ -134,8 +154,12 @@ export function simulateRound(state) {
     const potentialDemand = marketSize * share;
     const sales = Math.min(potentialDemand, p.availableFinishedGoods);
     const finishedGoodsEnd = Math.max(0, p.availableFinishedGoods - sales);
-    const utilization = p.production / Math.max(p.capacity, 1);
-    const directUnitCost = 3.24 * economy.rawIndex + 0.20 * (1 - clamp(utilization, 0, 1));
+    const utilization = p.production / Math.max(p.effectiveCapacity, 1);
+
+    const conversionWaste = clamp((TARGET_CONVERSION_FACTOR - p.conversionFactor) / TARGET_CONVERSION_FACTOR, -0.05, 0.25);
+    const overtimePenalty = Math.max(0, utilization - 1) * 0.40;
+    const directUnitCost = 3.24 * economy.rawIndex * (1 + conversionWaste) + overtimePenalty;
+
     const purchaseCost = decision.materialPurchase * MATERIAL_PRICE * economy.rawIndex;
     const depreciation = 90000 + decision.equipment * 0.08;
     const warehouse =
@@ -183,9 +207,10 @@ export function simulateRound(state) {
       marketShare: share,
       revenue,
       production: p.production,
-      capacity: p.capacity,
+      capacity: p.nextCapacity,
       rawMaterial: p.rawMaterialEnd,
       finishedGoods: finishedGoodsEnd,
+      conversionFactor: p.conversionNext,
       unitCost,
       netProfit,
       cash,
@@ -199,7 +224,13 @@ export function simulateRound(state) {
       lastDecision: decision
     });
 
-    company.history.push(snapshot(company, round, decision, economy));
+    company.history.push(snapshot(company, round, decision, economy, {
+      beginCapacity: p.beginCapacity,
+      maxProductionCapacity: p.maxProductionCapacity,
+      beginRawMaterial: p.beginRawMaterial,
+      procurementDelivered: p.procurementDelivered,
+      nextConversionFactor: p.conversionNext
+    }));
   });
 
   state.currentRound = round;
@@ -217,12 +248,10 @@ export function simulateRound(state) {
     price: Number(user.price.toFixed(2)),
     marketing: Math.round(user.lastDecision.marketing),
     rd: Math.round(user.lastDecision.rd),
-    production: Math.round(Math.min(user.capacity * 1.05, Math.max(user.sales * 1.08, 200000))),
-    materialPurchase: Math.round(
-      Math.max(300000, user.production * MATERIAL_PER_UNIT - user.rawMaterial + 650000)
-    ),
+    production: Math.round(Math.min(user.capacity * 1.25, Math.max(user.sales * 1.08, 200000))),
+    materialPurchase: Math.round(Math.max(300000, user.production * MATERIAL_PER_UNIT - user.rawMaterial + 650000)),
     equipment: 0,
-    maintenance: 260000,
+    maintenance: MAINTENANCE_REFERENCE,
     dividend: 0
   };
 

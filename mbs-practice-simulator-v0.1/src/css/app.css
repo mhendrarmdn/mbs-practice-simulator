@@ -162,3 +162,12 @@ hr{border:0;border-top:1px solid var(--border);margin:17px 0}.empty{font-size:10
 .calibration-score small{font-size:9px;color:var(--muted-foreground);line-height:1.45}
 .calibration-table{margin-bottom:12px}
 @media(max-width:620px){.debrief-grid{grid-template-columns:1fr}}
+
+
+/* v0.5 workbook-aligned operations fidelity */
+.matrix-stack{display:grid;gap:14px}
+.matrix-card{padding:0;overflow:hidden}
+.matrix-card .card-head{padding:17px 17px 0}
+.matrix-subtitle{padding:0 17px 12px;margin:0;color:var(--muted-foreground);font-size:10px;line-height:1.5}
+.matrix-card .table-wrap{border-top:1px solid var(--border)}
+.matrix-card tbody tr:hover{background:color-mix(in srgb,var(--primary) 5%,transparent)}

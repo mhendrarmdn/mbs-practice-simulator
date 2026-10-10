@@ -4,11 +4,12 @@ import {
   LEGACY_STORAGE_KEYS,
   MAX_ROUNDS,
   ROUND1_REFERENCE,
-  STORAGE_KEY
+  STORAGE_KEY,
+  TARGET_CONVERSION_FACTOR
 } from './config.js';
 import { clamp, deepClone, rngFrom } from './utils.js';
 
-export function snapshot(company, round, decision, economy) {
+export function snapshot(company, round, decision, economy, operational = {}) {
   return {
     round,
     decision: decision ? deepClone(decision) : deepClone(company.lastDecision),
@@ -23,8 +24,14 @@ export function snapshot(company, round, decision, economy) {
     revenue: company.revenue,
     production: company.production,
     capacity: company.capacity,
+    beginCapacity: operational.beginCapacity ?? company.capacity,
+    maxProductionCapacity: operational.maxProductionCapacity ?? company.capacity * 1.5,
     rawMaterial: company.rawMaterial,
+    beginRawMaterial: operational.beginRawMaterial ?? company.rawMaterial,
+    procurementDelivered: operational.procurementDelivered ?? 0,
     finishedGoods: company.finishedGoods,
+    conversionFactor: company.conversionFactor ?? TARGET_CONVERSION_FACTOR,
+    nextConversionFactor: operational.nextConversionFactor ?? company.conversionFactor ?? TARGET_CONVERSION_FACTOR,
     unitCost: company.unitCost,
     netProfit: company.netProfit,
     cash: company.cash,
@@ -55,6 +62,7 @@ export function baselineUser(team = 'MARKOWITZ') {
     capacity: 415000,
     rawMaterial: 1200000,
     finishedGoods: 51000,
+    conversionFactor: TARGET_CONVERSION_FACTOR,
     unitCost: 5.42,
     netProfit: 306310,
     cash: 1648636,
@@ -85,7 +93,14 @@ export function baselineUser(team = 'MARKOWITZ') {
     marketGrowth: 1,
     rawIndex: 1,
     event: null
+  }, {
+    beginCapacity: 415000,
+    maxProductionCapacity: 622500,
+    beginRawMaterial: 1200000,
+    procurementDelivered: 0,
+    nextConversionFactor: TARGET_CONVERSION_FACTOR
   }));
+
   return company;
 }
 
@@ -105,6 +120,7 @@ function botBaseline(name, strategy, index) {
   company.capacity = 390000 + random() * 210000;
   company.rawMaterial = 900000 + random() * 900000;
   company.finishedGoods = 25000 + random() * 80000;
+  company.conversionFactor = clamp(0.68 + random() * 0.04, 0.55, 0.75);
   company.unitCost = 4.9 + random() * 1.3;
   company.netProfit = (company.price - company.unitCost) * company.sales * 0.71;
   company.cash = 1400000 + random() * 1300000;
@@ -120,13 +136,19 @@ function botBaseline(name, strategy, index) {
     marketGrowth: 1,
     rawIndex: 1,
     event: null
+  }, {
+    beginCapacity: company.capacity,
+    maxProductionCapacity: company.capacity * 1.5,
+    beginRawMaterial: company.rawMaterial,
+    procurementDelivered: 0,
+    nextConversionFactor: company.conversionFactor
   })];
   return company;
 }
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.4.0',
+    version: '0.5.0',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -156,10 +178,29 @@ export function makeInitialState(team = 'MARKOWITZ') {
   };
 }
 
+function migrateCompany(company) {
+  company.conversionFactor = Number.isFinite(Number(company.conversionFactor))
+    ? Number(company.conversionFactor)
+    : TARGET_CONVERSION_FACTOR;
+
+  if (Array.isArray(company.history)) {
+    company.history = company.history.map(item => ({
+      ...item,
+      beginCapacity: Number.isFinite(Number(item.beginCapacity)) ? Number(item.beginCapacity) : Number(item.capacity || company.capacity),
+      maxProductionCapacity: Number.isFinite(Number(item.maxProductionCapacity)) ? Number(item.maxProductionCapacity) : Number(item.capacity || company.capacity) * 1.5,
+      beginRawMaterial: Number.isFinite(Number(item.beginRawMaterial)) ? Number(item.beginRawMaterial) : Number(item.rawMaterial || company.rawMaterial),
+      procurementDelivered: Number.isFinite(Number(item.procurementDelivered)) ? Number(item.procurementDelivered) : Number(item.decision?.materialPurchase || 0),
+      conversionFactor: Number.isFinite(Number(item.conversionFactor)) ? Number(item.conversionFactor) : company.conversionFactor,
+      nextConversionFactor: Number.isFinite(Number(item.nextConversionFactor)) ? Number(item.nextConversionFactor) : company.conversionFactor
+    }));
+  }
+  return company;
+}
+
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.4.0';
+  state.version = '0.5.0';
   state.mode = ['training', 'competition', 'sandbox'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -175,6 +216,7 @@ export function migrateState(input) {
   state.maxRounds = state.maxRounds || MAX_ROUNDS;
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
   state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];
+  state.companies = state.companies.map(migrateCompany);
   return state;
 }
 

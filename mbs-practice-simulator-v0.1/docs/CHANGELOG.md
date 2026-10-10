@@ -1,71 +1,44 @@
 # Changelog
 
-## v0.4.0 — Decision Intelligence
+## v0.5.0 — Operations Fidelity
 
-### Pre-Submit Decision Readiness
-- Added a 0–100 readiness score before round submission.
-- Checks price vs current unit cost.
-- Checks planned supply coverage vs current potential demand.
-- Checks raw-material sufficiency / excess.
-- Flags dividend under financial pressure.
-- Flags CAPEX while overdraft is active.
-- Flags aggressive discretionary cash commitments.
+### Workbook-aligned mechanics
+- Procurement now arrives at end-of-round / beginning of next round.
+- Same-round procurement no longer rescues current production shortages.
+- Production overtime ceiling is now 50% above normal capacity.
+- Normal capacity ages 2.5% per round.
+- Equipment investment adds next-round capacity at $20 per capacity unit.
+- Maintenance changes next-round conversion efficiency.
+- Added conversion-factor KPI with ~0.7 workbook reference.
+- Added operations timing fields to round history.
 
-### Round Debrief
-- Added post-round causal debrief.
-- Explains market-share movement.
-- Explains sales movement.
-- Tracks profit change vs prior round.
-- Detects unserved demand / supply bottleneck.
-- Calls out unit-cost > price.
-- Calls out overdraft pressure.
-- Notes quality/image improvements.
+### Decision matrices
+- Added Overall Business Matrix.
+- Added Price Matrix.
+- Added Marketing & R&D Matrix.
+- Added Procurement Matrix.
+- Added Production Matrix.
+- Added Maintenance & Equipment Matrix.
+- Added Dividend Matrix.
 
-### Scenario Presets
-- Added Auto / Competition-like.
-- Added Controlled Baseline.
-- Added Demand Boom.
-- Added Economic Slowdown.
-- Added Raw Material Shock.
-- Added Equipment Disruption.
-- Manual presets work in Training / Sandbox.
-- Competition Mode forces Auto.
-
-### Calibration Lab
-- Added observed R1 calibration object.
-- Detects whether the R1 Reference decision set was actually used.
-- Compares simulated R1 outputs with observed anchors.
-- Reports per-metric absolute percentage error.
-- Provides a transparent fidelity score when comparable.
-- Explicitly retains the model-boundary disclaimer.
+### UI / analysis
+- Status now separates beginning capacity, overtime ceiling, beginning RM, end RM, procurement delivery, and conversion factor.
+- Analysis now shows operational constraints using beginning-of-round resources.
+- Decision Readiness now respects one-round procurement delivery timing.
 
 ### Compatibility
-- Migrates local save state from v0.1, v0.2, and v0.3.
-- Keeps v0.3 team-room schema; no new Supabase migration required.
-- Preserves existing Vercel Root Directory.
+- Migrates v0.1-v0.4 local saves to v0.5.
+- No new Supabase migration.
+- Existing Vercel Root Directory unchanged.
+
+## v0.4.0
+Decision Intelligence: readiness score, debrief, scenario presets, R1 calibration.
 
 ## v0.3.0
-
-- Added per-member room sessions and display names.
-- Added Captain / Member roles.
-- Added online/away presence.
-- Added atomic decision-field patches.
-- Added room revision protection.
-- Added Captain-only submit/control actions.
-- Added shared Competition deadline.
-- Fixed remote-state polling timestamp thrash.
+Shared team room: roles, presence, revision-safe sync, shared timer.
 
 ## v0.2.0
-
-- Added Light / Dark / System themes.
-- Added Training / Competition / Sandbox.
-- Added timer and locking.
-- Added Sensitivity Lab.
-- Added adaptive AI.
-- Added Scenario Center.
-- Added alerts, save import/export, Model Transparency.
-- Reworked UI into Floot-style competition cockpit.
+Floot-style cockpit, themes, modes, Sensitivity Lab, adaptive AI, scenarios, save recovery.
 
 ## Model boundary
-
-This project remains an independent training simulator and does not claim to reproduce proprietary TopBoss formulas.
+This remains an independent training simulator. Workbook-explicit mechanics are implemented directly; undisclosed proprietary equations remain approximations.
