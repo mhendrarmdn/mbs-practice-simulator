@@ -1,16 +1,18 @@
-import { OBSERVED_ANCHORS, SCENARIO_PRESETS, TRAINING_PROXY_NOTES } from './config.js';
+import { OBSERVED_ANCHORS, SCENARIO_PRESETS, STRATEGY_GOALS, TRAINING_PROXY_NOTES } from './config.js';
 import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
 import { decisionMatrices } from './decisionMatrix.js';
 import { competitionSnapshot, presentationBrief, strategyBrief, stressTestDraft } from './competitionCenter.js';
 import { buildRound6Review, workbookStage } from './workbookLab.js';
+import { strategyAlignment, strategyComparison } from './strategySystem.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
   dashboard: '▦',
   competition: '◆',
   workbook: 'W',
+  strategy: 'S',
   decisions: '⌁',
   status: '◎',
   analysis: '▤',
@@ -57,12 +59,13 @@ export function shell(state, activeTab, themePreference) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.7</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.8</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
           ${navButton('competition', 'Competition Center', activeTab)}
           ${navButton('workbook', 'Workbook Lab', activeTab)}
+          ${navButton('strategy', 'Strategy Lab', activeTab)}
           ${navButton('decisions', 'Business Decisions', activeTab)}
           ${navButton('status', 'Status', activeTab)}
           ${navButton('analysis', 'Analysis', activeTab)}
@@ -278,6 +281,7 @@ export function workbookView(state) {
         <p class="subtitle">Workbook exercise = hasil R0–R5 untuk controlling, lalu Round 6 dibuat sebagai business plan saja dan tidak disimulasikan.</p>
       </div>
       <div class="actions">
+        <button class="secondary" data-action="export-workbook-excel">▦ Export Excel</button>
         <button class="secondary" data-action="export-workbook-plan" ${!stage.resultsComplete ? 'disabled' : ''}>⇩ Export R6 Plan</button>
         <button class="primary" data-action="goto-decisions">${stage.resultsComplete ? 'Open Round 6 Plan' : 'Continue Workbook Round'}</button>
       </div>
@@ -317,6 +321,68 @@ export function workbookView(state) {
         </div>
       </section>
     ` : ''}
+  `;
+}
+
+
+export function strategyView(state) {
+  const current = strategyAlignment(state);
+  const comparison = strategyComparison(state);
+  const captain = isCaptain() || !state.roomCode;
+
+  return `
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">OBJECTIVE-DRIVEN MANAGEMENT</div>
+        <h1>Strategy Lab</h1>
+        <p class="subtitle">Pilih tujuan utama tim. Alignment score kemudian membaca draft yang sama melalui objective yang berbeda, bukan satu aturan universal.</p>
+      </div>
+      <div class="actions">
+        <select id="strategyGoal" class="top-control strategy-select" ${!captain ? 'disabled' : ''}>
+          ${Object.entries(STRATEGY_GOALS).map(([key,goal])=>`<option value="${key}" ${state.strategyGoal===key?'selected':''}>${esc(goal.label)}</option>`).join('')}
+        </select>
+        <button class="primary" data-action="goto-decisions">Open Decision Room</button>
+      </div>
+    </div>
+
+    <section class="strategy-hero">
+      <div class="strategy-score-card">
+        <span>SELECTED OBJECTIVE</span>
+        <h2>${esc(current.goal.label)}</h2>
+        <p>${esc(current.goal.description)}</p>
+        <div class="strategy-big-score"><strong>${current.score}</strong><b>/100</b><em>Alignment</em></div>
+      </div>
+      <div class="card">
+        ${cardHead('SIGNAL MAP','Objective Components','◎')}
+        <div class="signal-grid">
+          ${Object.entries(current.signals).map(([key,value])=>`<div><span>${esc(key)}</span><div class="signal-bar"><i style="width:${value}%"></i></div><strong>${value}</strong></div>`).join('')}
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid strategy-guidance">
+      <div class="card">
+        ${cardHead('PRIORITIES','What This Goal Wants Next','01')}
+        <div class="brief-list numbered">${current.priorities.map((item,index)=>`<div><b>${index+1}</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        ${cardHead('GUARDRAILS','What Not To Break','△')}
+        <div class="brief-list">${current.guardrails.map(item=>`<div><b>•</b><span>${esc(item)}</span></div>`).join('')}</div>
+      </div>
+    </section>
+
+    <section class="card strategy-comparison-card">
+      ${cardHead('OBJECTIVE COMPARISON','How The Same Draft Scores Under Different Goals','S')}
+      <div class="strategy-comparison">
+        ${comparison.map(item=>`
+          <div class="${item.goalKey===state.strategyGoal?'selected':''}">
+            <span>${esc(item.goal.label)}</span>
+            <strong>${item.score}</strong>
+            <small>${esc(item.goal.short)}</small>
+          </div>`).join('')}
+      </div>
+      <div class="callout">Strategy Alignment adalah decision-support heuristic. Nilai tinggi berarti draft lebih konsisten dengan objective yang dipilih, bukan jaminan NPV atau kemenangan.</div>
+    </section>
   `;
 }
 
@@ -578,6 +644,7 @@ export function bodyForTab(state, activeTab) {
   switch (activeTab) {
     case 'competition': return competitionView(state);
     case 'workbook': return workbookView(state);
+    case 'strategy': return strategyView(state);
     case 'decisions': return decisionsView(state);
     case 'status': return statusView(state);
     case 'analysis': return analysisView(state);

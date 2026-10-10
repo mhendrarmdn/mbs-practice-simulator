@@ -149,7 +149,7 @@ function botBaseline(name, strategy, index) {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.7.0',
+    version: '0.8.0',
     roomCode: '',
     roomKey: '',
     revision: 0,
@@ -158,6 +158,7 @@ export function makeInitialState(team = 'MARKOWITZ') {
     currentRound: 0,
     maxRounds: MAX_ROUNDS,
     mode: 'training',
+    strategyGoal: 'balancedValue',
     workbookPlan: null,
     timerSeconds: DEFAULT_TIMER_SECONDS,
     timerRemaining: DEFAULT_TIMER_SECONDS,
@@ -202,7 +203,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.7.0';
+  state.version = '0.8.0';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -216,6 +217,7 @@ export function migrateState(input) {
   state.scenarioPreset = state.scenarioPreset || 'auto';
   state.sensitivity = state.sensitivity || { key: 'price', deltaPct: 10 };
   state.maxRounds = state.mode === 'workbook' ? WORKBOOK_RESULT_ROUNDS : (state.maxRounds || MAX_ROUNDS);
+  state.strategyGoal = state.strategyGoal || 'balancedValue';
   state.workbookPlan = state.workbookPlan || null;
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
   state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];

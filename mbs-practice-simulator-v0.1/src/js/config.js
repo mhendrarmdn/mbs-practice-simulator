@@ -1,5 +1,5 @@
-export const STORAGE_KEY = 'mbs_practice_v07';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v06', 'mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v08';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v07', 'mbs_practice_v06', 'mbs_practice_v05', 'mbs_practice_v04', 'mbs_practice_v03', 'mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
@@ -133,5 +133,39 @@ export const SCENARIO_PRESETS = {
     raw: 1,
     capacity: 0.90,
     event: { title: 'Equipment Disruption', text: 'Preset: capacity efektif turun 10%.', raw: 1, demand: 1, capacity: 0.90 }
+  }
+};
+
+
+export const STRATEGY_GOALS = {
+  balancedValue: {
+    label: 'Balanced Value',
+    short: 'Balance NPV, profit, liquidity, and market position.',
+    description: 'Prioritaskan value creation yang seimbang: profit, cash resilience, market share, dan kemampuan operasi harus bergerak tanpa satu KPI mengorbankan yang lain.'
+  },
+  profitability: {
+    label: 'Profitability First',
+    short: 'Protect margin, ROE, and unit economics.',
+    description: 'Fokus pada spread price–unit cost, profit margin, ROE, dan disiplin discretionary spending.'
+  },
+  marketLeadership: {
+    label: 'Market Leadership',
+    short: 'Grow share with sufficient supply and brand support.',
+    description: 'Fokus pada market share, demand capture, marketing/R&D support, dan supply readiness tanpa mengabaikan economics.'
+  },
+  liquidityDefense: {
+    label: 'Liquidity Defense',
+    short: 'Protect cash, current ratio, and avoid overdraft.',
+    description: 'Fokus pada cash preservation, current ratio, pengurangan overdraft, serta pengendalian CAPEX/dividend/spending.'
+  },
+  capacityGrowth: {
+    label: 'Capacity Growth',
+    short: 'Prepare operations for demand and future scale.',
+    description: 'Fokus pada capacity, production coverage, raw-material readiness, dan equipment investment yang punya horizon payoff jelas.'
+  },
+  premiumBrand: {
+    label: 'Premium Brand',
+    short: 'Build quality, image, and pricing power.',
+    description: 'Fokus pada quality, image, R&D, marketing, dan pricing power sambil menjaga demand serta margin.'
   }
 };
