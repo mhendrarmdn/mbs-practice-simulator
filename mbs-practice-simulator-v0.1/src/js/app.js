@@ -34,6 +34,8 @@ let sidebarCollapsed = mobileSidebarQuery.matches
   ? true
   : storedSidebar === '1';
 let financialRound = null;
+let parityRound = null;
+let competitiveMetric = 'marketShare';
 let pollTimer = null;
 let timerTick = null;
 const draftTimers = new Map();
@@ -185,7 +187,7 @@ function startTimer() {
 function render(restartTimer = true) {
   state.timerRemaining = timerRemaining();
   root.innerHTML = shell(state, activeTab, getThemePreference(), { sidebarCollapsed });
-  document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound });
+  document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric });
   bindEvents();
   if (restartTimer) startTimer();
 }
@@ -264,6 +266,18 @@ function bindEvents() {
 
   document.querySelector('#financialRoundSelect')?.addEventListener('change', event => {
     financialRound = Number(event.target.value);
+    render(false);
+  });
+
+  document.querySelectorAll('[data-round-tab]').forEach(button => {
+    button.addEventListener('click', () => {
+      parityRound = Number(button.dataset.roundTab);
+      render(false);
+    });
+  });
+
+  document.querySelector('#competitiveMetric')?.addEventListener('change', event => {
+    competitiveMetric = event.target.value || 'marketShare';
     render(false);
   });
 
@@ -393,6 +407,7 @@ function bindEvents() {
         }
         simulateRound(state);
         financialRound = state.currentRound;
+        parityRound = state.currentRound;
         state.roundDeadlineAt = state.mode === 'competition' && state.currentRound < state.maxRounds
           ? new Date(Date.now() + state.timerSeconds * 1000).toISOString()
           : null;
@@ -485,6 +500,7 @@ function bindEvents() {
           }
           persistLocal();
           if (state.roomCode) await commitCanonicalState();
+          parityRound = 0;
           activeTab = 'dashboard';
         }
 

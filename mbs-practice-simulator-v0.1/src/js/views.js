@@ -8,6 +8,22 @@ import { buildRound6Review, workbookStage } from './workbookLab.js';
 import { strategyAlignment, strategyComparison } from './strategySystem.js';
 import { robustOptimize } from './robustOptimizer.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
+import {
+  parityDashboardView,
+  economicEnvironmentView,
+  businessStatusView,
+  productImageView,
+  marketShareView,
+  revenueStatusView,
+  salesTrendView,
+  productionLogisticsView,
+  costStructureView,
+  competitiveAnalysisView,
+  performanceTreeView,
+  parityDecisionHistoryView,
+  parityFinancialRatioView,
+  parityFinancialStatementView
+} from './parityViews.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
@@ -26,8 +42,12 @@ const NAV_ICONS = {
   leaderboard: '♛',
   scenarios: '✦',
   model: '◈',
-  setup: '⚙'
-};
+  setup: '⚙',
+  economy: 'E',
+  businessStatus: 'B',
+  productImage: 'P',
+  marketShare: 'M',
+  revenue: '
 
 function navButton(id, label, active) {
   return `<button data-tab="${id}" class="${active === id ? 'active' : ''}" title="${esc(label)}"><span class="nav-ico">${NAV_ICONS[id] || '•'}</span><span class="nav-text">${label}</span></button>`;
@@ -68,7 +88,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.1</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2</small></div>
           <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="Tutup sidebar" title="Tutup sidebar"><span></span><span></span><span></span></button>
         </div>
         <nav class="nav">
@@ -78,18 +98,26 @@ export function shell(state, activeTab, themePreference, ui = {}) {
             ['history','Decision History']
           ], activeTab)}
           ${navGroup('STATUS', [
-            ['status','Status / Business Status']
+            ['economy','Economic Environment'],
+            ['businessStatus','Business Status'],
+            ['productImage','Product Image'],
+            ['marketShare','Market Share'],
+            ['revenue','Revenue / Sales Status']
           ], activeTab)}
           ${navGroup('ANALYSIS', [
-            ['analysis','Operations Analysis'],
-            ['ratios','Financial Ratio'],
-            ['matrix','Decision Matrices']
+            ['salesTrend','Sales Trend'],
+            ['operations','Production & Logistics'],
+            ['costStructure','Cost Structure'],
+            ['competitive','Competitive Analysis'],
+            ['ratios','Financial Ratio']
           ], activeTab)}
           ${navGroup('PERFORMANCE', [
             ['financials','Financial Statement'],
+            ['performanceTree','Decision / Performance Tree'],
             ['leaderboard','Leaderboard']
           ], activeTab)}
-          ${navGroup('PRACTICE LABS', [
+          ${navGroup('PRACTICE TOOLS', [
+            ['matrix','Decision Matrices'],
             ['competition','Competition Center'],
             ['workbook','Workbook Lab'],
             ['strategy','Strategy Lab'],
@@ -902,16 +930,26 @@ export function bodyForTab(state, activeTab, ui = {}) {
     case 'strategy': return strategyView(state);
     case 'optimizer': return optimizerView(state);
     case 'decisions': return decisionsView(state);
-    case 'status': return statusView(state);
-    case 'analysis': return analysisView(state);
-    case 'ratios': return ratiosView(state, ui.financialRound);
-    case 'financials': return financialsView(state, ui.financialRound);
-    case 'history': return historyView(state);
+    case 'history': return parityDecisionHistoryView(state, ui.parityRound);
+    case 'economy': return economicEnvironmentView(state, ui.parityRound);
+    case 'businessStatus':
+    case 'status': return businessStatusView(state, ui.parityRound);
+    case 'productImage': return productImageView(state, ui.parityRound);
+    case 'marketShare': return marketShareView(state, ui.parityRound);
+    case 'revenue': return revenueStatusView(state, ui.parityRound);
+    case 'salesTrend': return salesTrendView(state, ui.parityRound);
+    case 'operations':
+    case 'analysis': return productionLogisticsView(state, ui.parityRound);
+    case 'costStructure': return costStructureView(state, ui.parityRound);
+    case 'competitive': return competitiveAnalysisView(state, ui.parityRound, ui.competitiveMetric || 'marketShare');
+    case 'ratios': return parityFinancialRatioView(state, ui.parityRound);
+    case 'financials': return parityFinancialStatementView(state, ui.parityRound);
+    case 'performanceTree': return performanceTreeView(state, ui.parityRound);
     case 'matrix': return matrixView(state);
     case 'leaderboard': return leaderboardView(state);
     case 'scenarios': return scenariosView(state);
     case 'model': return modelView(state);
     case 'setup': return setupView(state);
-    default: return dashboardView(state);
+    default: return parityDashboardView(state, ui.parityRound);
   }
 }
