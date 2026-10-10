@@ -86,7 +86,6 @@ export function baselineUser(team = 'MARKOWITZ') {
     rawIndex: 1,
     event: null
   }));
-
   return company;
 }
 
@@ -127,15 +126,18 @@ function botBaseline(name, strategy, index) {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.2.0',
+    version: '0.3.0',
     roomCode: '',
     roomKey: '',
+    revision: 0,
+    roomMembers: [],
     teamName: team.toUpperCase(),
     currentRound: 0,
     maxRounds: MAX_ROUNDS,
     mode: 'training',
     timerSeconds: DEFAULT_TIMER_SECONDS,
     timerRemaining: DEFAULT_TIMER_SECONDS,
+    roundDeadlineAt: null,
     decisionLocked: false,
     lockReason: '',
     lastEvent: null,
@@ -156,12 +158,11 @@ export function makeInitialState(team = 'MARKOWITZ') {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '0.2.0';
+  state.version = '0.3.0';
   state.mode = ['training', 'competition', 'sandbox'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
-  state.timerRemaining = Number.isFinite(Number(state.timerRemaining))
-    ? Number(state.timerRemaining)
-    : state.timerSeconds;
+  state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
+  state.roundDeadlineAt = state.roundDeadlineAt || null;
   state.decisionLocked = Boolean(state.decisionLocked);
   state.lockReason = state.lockReason || '';
   state.eventHistory = Array.isArray(state.eventHistory) ? state.eventHistory : [];
@@ -170,6 +171,8 @@ export function migrateState(input) {
   }
   state.sensitivity = state.sensitivity || { key: 'price', deltaPct: 10 };
   state.maxRounds = state.maxRounds || MAX_ROUNDS;
+  state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
+  state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];
   return state;
 }
 
@@ -191,8 +194,8 @@ export function loadState() {
   return makeInitialState();
 }
 
-export function saveLocal(state) {
-  state.updatedAt = new Date().toISOString();
+export function saveLocal(state, { touch = true } = {}) {
+  if (touch) state.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 

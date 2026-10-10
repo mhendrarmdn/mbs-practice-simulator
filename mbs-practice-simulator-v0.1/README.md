@@ -1,64 +1,63 @@
-# MBS Practice Simulator v0.2
+# MBS Practice Simulator v0.3
 
 Independent web-based training simulator for Macro Business Simulation / TopBoss-style competition practice.
 
-> This is a **training twin**, not an official TopBoss clone. Observed values are used as calibration anchors, while demand, Practice NPV, Balanced Score, AI behavior, and several finance/cost relationships remain transparent training approximations.
+> This is a **training twin**, not an official TopBoss clone. Observed values are calibration anchors; simulator formulas remain transparent practice approximations.
 
-## v0.2 highlights
+## v0.3 focus — Team Room
+
+v0.3 keeps the Floot-style cockpit UI and all v0.2 features, while upgrading the shared-room layer:
+
+- per-member room sessions
+- Captain / Member roles
+- member display names and online presence
+- atomic shared decision-field updates
+- server-side room revision counter
+- optimistic conflict protection for Captain commits
+- Captain-only round submit, mode changes, scenario control, reset, and team rename
+- shared Competition deadline so browsers follow the same countdown
+- graceful fallback to the legacy v0.1 room RPCs
+- automatic local-save migration from v0.1/v0.2
+
+## Existing simulation features
 
 - Round 0 baseline + Round 1–4
-- 8 management decisions: Price, Marketing, R&D, Production, Material Purchase, Equipment, Maintenance, Dividend
+- 8 management decisions
 - 9 adaptive AI competitors
 - Dark / Light / System theme
 - Training / Competition / Sandbox modes
-- Competition timer + decision locking
+- Competition timer and locking
 - Sensitivity Lab
-- Surprise Scenario Center + event history
+- Surprise Scenario Center
 - Financial health alerts
-- Improved Decision History with round-over-round deltas
-- Export / import save JSON
-- Model Transparency panel
-- Optional Supabase shared team room
-- Responsive Vercel-ready Vite app
-- Automatic migration from v0.1 browser save
+- Decision History with deltas
+- Practice NPV + Balanced Score proxies
+- Save export/import JSON
+- Model Transparency
+- responsive Floot-style competition cockpit
 
-## Run locally
+## Deploy
 
-Requires Node.js 18+.
+The Vercel-compatible app remains inside:
 
-```bash
-npm install
-npm run dev
-```
+`mbs-practice-simulator-v0.1/`
 
-## Deploy to Vercel
+This folder name is intentionally preserved so the existing Vercel Root Directory does not need to change.
 
-This repository keeps the deployable app inside `mbs-practice-simulator-v0.1/` for compatibility with the existing Vercel project. Keep Vercel's **Root Directory** pointed to that folder.
+## Upgrade Supabase for v0.3 rooms
 
-When this branch is merged into `main`, a Git-integrated Vercel project should automatically rebuild and redeploy.
+1. Open Supabase → **SQL Editor**.
+2. Run the latest `supabase/schema.sql` once.
+3. Reload the deployed app.
+4. Open **Room & Setup**.
+5. Enter Project URL + public anon/publishable key.
+6. Captain creates a new room and shares Room Code + Room Key.
+7. Teammates join using individual display names.
 
-## Supabase shared rooms
-
-1. Create a Supabase project.
-2. Run `supabase/schema.sql` in SQL Editor.
-3. Copy Project URL + public anon/publishable key.
-4. Open **Room & Setup** in the simulator.
-5. Create or join a room.
+See `docs/ROOM_V03_MIGRATION.md`.
 
 Never use the Supabase `service_role` key in the browser.
 
-## Calibration anchors
+## Model boundary
 
-The simulator preserves known observed anchors including Round 0 revenue/sales/price/share/profit/unit cost and selected Round 1 demand, sales, inventory, cost, revenue, earnings, overdraft, and equity values.
-
-See **Model Transparency** in the app and `docs/CHANGELOG.md`.
-
-## Core model files
-
-- `src/js/simulator.js` — market, operations, finance, NPV proxy, balanced-score proxy
-- `src/js/ai.js` — adaptive competitor strategies
-- `src/js/state.js` — baseline, save migration, round history
-- `src/js/sensitivity.js` — what-if directional preview
-- `src/js/theme.js` — theme handling
-- `src/js/persistence.js` — save export/import
-- `src/js/supabase.js` — optional shared-room client
+The project does not claim access to proprietary TopBoss demand, NPV, balanced-score, or other internal formulas.
