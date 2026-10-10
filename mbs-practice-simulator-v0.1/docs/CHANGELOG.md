@@ -1,36 +1,57 @@
 # Changelog
 
-## v1.1.0 — UI Polish + Precision Pass
+## v1.2.0 — TopBoss Video Parity Pass
 
-### Header / topbar
-- Increased topbar height and vertical spacing.
-- Re-aligned hamburger, team name, round label, and right-side controls.
-- Improved mobile/tablet header spacing.
+### Evidence basis
+- Reworked the interface using the four contact sheets extracted from the user's 7:06 MBS / TopBoss recording.
+- The release aligns information architecture and page composition to visible screens in the recording.
+- No proprietary TopBoss formula is claimed or invented.
 
-### Numeric precision
-- Decision-sensitive monetary values below $100 now render with two decimals.
-- Price and Unit Cost therefore display values such as $6.00 and $5.42 instead of coarse integer rounding.
-- Large financial totals retain whole-dollar formatting.
+### Global shell
+- Added a flatter enterprise-style visual system.
+- Narrower light sidebar, compact blue header, lower-radius panels, lighter borders, reduced shadows.
+- Practice-only tools are separated from the recording-aligned Management / Status / Analysis / Performance navigation.
 
-### Dashboard composition
-- Increased space between heading/actions and KPI cards.
-- Increased module spacing.
-- Expanded Round Debrief into a fuller-width, better-balanced panel.
-- Added more bottom breathing room.
+### Global round navigation
+- Added reusable Round tabs for recording-aligned analytical screens.
+- Round selection reads historical snapshots without changing canonical simulation state.
 
-### Sidebar polish
-- Hidden the visible scrollbar while keeping navigation scrollable.
-- Tightened menu spacing.
-- Added more separation before the Training Model footer.
+### New / rebuilt parity screens
+- Management Dashboard
+- Economic Environment
+- Business Status
+- Product Image
+- Market Share
+- Revenue / Sales Status
+- Sales Trend
+- Production & Logistics
+- Cost Structure
+- Competitive Analysis
+- Financial Ratio
+- Financial Statement
+- Decision / Performance Tree
+- Decision History matrix
 
-### Video parity status
-- This release is a screenshot-driven UI polish pass.
-- The raw MP4 parity audit is still blocked by a recurring runtime ClientError in this session.
-- No new frame-by-frame parity claim is made.
+### Competitive analysis
+- Added metric selector and multi-company trend comparison.
+- Supports Market Share, Revenue, Sales, Price, Quality, Image, Net Profit, Unit Cost, and Practice NPV.
+
+### Financial presentation
+- Financial Ratio now uses a dense report table instead of large ratio cards.
+- Financial Statement now uses a three-column Balance Sheet / Cash Flow / Income Statement layout with Round tabs.
+
+### Model boundary
+- Missing source variables are not fabricated.
+- Decision / Performance Tree is explicitly a training explanation, not a proprietary formula reconstruction.
+- Market Share uses the simulator's available overall market share; no fake market segments are generated.
 
 ### Database
-- No new Supabase migration required.
+- No new Supabase schema migration required.
+
+## v1.1.0 — UI Polish + Precision Pass
+
+Header alignment, numeric precision, dashboard spacing, and sidebar polish.
 
 ## v1.0.0 — TopBoss Workflow Parity + Full Financials
 
-See previous release notes.
+Full financial statements, ratio page, and initial TopBoss-style workflow parity.
