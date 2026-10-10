@@ -1666,3 +1666,146 @@ body{
     grid-template-columns:1fr!important;
   }
 }
+
+
+/* v1.2.5 — chart trust, debrief insight, and sidebar completion */
+
+/* Sidebar: make nav the only scrolling region so footer never hides the last items. */
+.sidebar{
+  overflow:hidden!important;
+}
+.nav{
+  flex:1!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  padding-bottom:160px!important;
+  scroll-padding-block:24px 170px!important;
+}
+.sidebar-bottom{
+  flex:none!important;
+  position:relative!important;
+  z-index:3!important;
+}
+
+/* Charts: clearer break-even semantics and consistent sans-serif labels. */
+.tb-zero-line{
+  stroke:#8b4b4f;
+  stroke-width:1.8;
+}
+.tb-negative-zone{
+  fill:rgba(185,65,73,.08);
+}
+.tb-axis-label,
+.tb-chart-legend,
+.tb-point-label{
+  font-family:'IBM Plex Sans',sans-serif!important;
+}
+.tb-axis-label{
+  font-size:11px!important;
+  font-weight:500!important;
+  fill:#566c80!important;
+}
+.tb-point-label{
+  font-size:10px!important;
+  font-weight:700!important;
+}
+.tb-chart-legend{
+  font-size:10px!important;
+}
+
+/* Product Image: numbered competitors, readable quadrants, and balanced cards. */
+.product-image-layout{
+  align-items:stretch!important;
+}
+.tb-equal-panel{
+  display:flex!important;
+  flex-direction:column!important;
+  height:100%!important;
+}
+.tb-equal-panel .tb-panel-body{
+  flex:1!important;
+}
+.tb-scatter{
+  min-height:445px!important;
+}
+.tb-scatter svg{
+  height:415px!important;
+}
+.tb-scatter-average-label{
+  fill:#86620a!important;
+  font-size:11px!important;
+  font-weight:700!important;
+}
+.tb-quadrant-label{
+  fill:#7b8997;
+  font:600 9px 'IBM Plex Sans',sans-serif;
+  opacity:.9;
+}
+.tb-scatter-point-number{
+  fill:#fff;
+  font:700 8px 'IBM Plex Sans',sans-serif;
+  pointer-events:none;
+}
+.tb-scatter-point-number.user{
+  font-size:9px;
+}
+.tb-point-key{
+  width:20px;
+  height:20px;
+  display:inline-grid;
+  place-items:center;
+  border-radius:999px;
+  background:#aeb9c5;
+  color:#fff;
+  font:700 9px 'IBM Plex Sans',sans-serif;
+}
+.tb-point-key.user{
+  background:#1f5f99;
+}
+.tb-scatter-help{
+  margin-top:7px;
+  padding:8px 10px!important;
+  border-top:1px solid #dfe6ec;
+  color:#607386!important;
+  font-size:10px!important;
+  line-height:1.45;
+}
+
+/* Automatic round debrief below Sales Trend. */
+.tb-insight{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:0 0 12px;
+  padding:11px 13px;
+  border:1px solid #cfdce7;
+  border-left:4px solid #2d7db7;
+  border-radius:5px;
+  background:#f7fbfe;
+}
+.tb-insight>strong{
+  flex:none;
+  color:#245b91;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.tb-insight>span{
+  color:#53687c;
+  font-size:10px;
+  line-height:1.5;
+}
+.tb-insight b{
+  color:#263f56;
+}
+
+/* Revenue ranking emphasis. */
+.tb-user-rank{
+  color:#1f5f99!important;
+  font-weight:800!important;
+}
+
+@media(max-width:1180px){
+  .tb-scatter{min-height:400px!important}
+  .tb-scatter svg{height:370px!important}
+}
