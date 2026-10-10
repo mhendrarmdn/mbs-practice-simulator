@@ -29,9 +29,16 @@ function selectedRound(state, requested) {
 }
 
 function roundTabs(state, round) {
-  return `<div class="tb-round-tabs" role="tablist" aria-label="Round selector">${availableRounds(state).map(r =>
-    `<button type="button" data-round-tab="${r}" class="${r===round?'active':''}">Round ${r}</button>`
-  ).join('')}</div>`;
+  const completed = new Set(availableRounds(state));
+  const resultMax = state.mode === 'workbook' ? 5 : Number(state.maxRounds || 4);
+  const resultTabs = Array.from({ length: resultMax + 1 }, (_, r) => {
+    const enabled = completed.has(r);
+    return `<button type="button" data-round-tab="${r}" class="${r===round?'active':''}" ${enabled?'':'disabled'}>R${r}</button>`;
+  }).join('');
+  const planTab = state.mode === 'workbook'
+    ? `<button type="button" class="plan-tab" disabled>R6 Plan</button>`
+    : '';
+  return `<div class="tb-round-tabs" role="tablist" aria-label="Round selector">${resultTabs}${planTab}</div>`;
 }
 
 function page(title, subtitle, state, round, body, actions='') {
@@ -39,7 +46,6 @@ function page(title, subtitle, state, round, body, actions='') {
     <section class="tb-page">
       <div class="tb-page-head">
         <div>
-          <div class="tb-breadcrumb">MBS · ${esc(title)}</div>
           <h1>${esc(title)}</h1>
           <p>${esc(subtitle)}</p>
         </div>
@@ -59,15 +65,15 @@ function dataTable(headers, rows, classes='') {
 }
 
 function lineChart(series, rounds, valueFormat = value => num(value)) {
-  const width=720, height=230, pad=28;
+  const width=720, height=230, padTop=24, padBottom=28, padLeft=82, padRight=24;
   const values=series.flatMap(s=>s.values).filter(Number.isFinite);
   const min=Math.min(...values,0), max=Math.max(...values,1), span=Math.max(max-min,1);
-  const x=i=>pad+(rounds.length<=1?0:i*(width-pad*2)/(rounds.length-1));
-  const y=v=>height-pad-((v-min)/span)*(height-pad*2);
+  const x=i=>padLeft+(rounds.length<=1?0:i*(width-padLeft-padRight)/(rounds.length-1));
+  const y=v=>height-padBottom-((v-min)/span)*(height-padTop-padBottom);
   const grid=[0,.25,.5,.75,1].map(frac=>{
-    const yy=pad+frac*(height-pad*2);
+    const yy=padTop+frac*(height-padTop-padBottom);
     const val=max-frac*span;
-    return `<g><line x1="${pad}" y1="${yy}" x2="${width-pad}" y2="${yy}" class="tb-grid-line"/><text x="2" y="${yy+3}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
+    return `<g><line x1="${padLeft}" y1="${yy}" x2="${width-padRight}" y2="${yy}" class="tb-grid-line"/><text x="4" y="${yy+3}" class="tb-axis-label">${esc(valueFormat(val))}</text></g>`;
   }).join('');
   const paths=series.map((s,idx)=>{
     const color=PALETTE[idx%PALETTE.length];
@@ -75,7 +81,7 @@ function lineChart(series, rounds, valueFormat = value => num(value)) {
     const dots=s.values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="${s.highlight?3.1:2.5}" fill="${color}" />`).join('');
     return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3:1.8}" opacity="${s.highlight?1:.78}"/>${dots}`;
   }).join('');
-  const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-5}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
+  const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-7}" text-anchor="middle" class="tb-axis-label">R${r}</text>`).join('');
   const legend=series.map((s,idx)=>`<span><i style="background:${PALETTE[idx%PALETTE.length]}"></i>${esc(s.name)}</span>`).join('');
   return `<div class="tb-chart"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">${grid}${paths}${labels}</svg><div class="tb-chart-legend">${legend}</div></div>`;
 }
@@ -91,49 +97,117 @@ function barChart(items, formatter = value => num(value)) {
 }
 
 function pieChart(items) {
-  const positives=items.map(x=>({...x,value:Math.max(0,Number(x.value)||0)}));
+  const positives=items.map((x,idx)=>({
+    ...x,
+    value:Math.max(0,Number(x.value)||0),
+    color:x.color || PALETTE[idx%PALETTE.length]
+  }));
   const total=positives.reduce((sum,x)=>sum+x.value,0)||1;
   let cursor=0;
-  const stops=positives.map((item,idx)=>{
+  const stops=positives.map(item=>{
     const start=cursor;
     cursor += item.value/total*100;
-    return `${PALETTE[idx%PALETTE.length]} ${start}% ${cursor}%`;
+    return `${item.color} ${start}% ${cursor}%`;
   }).join(',');
-  return `<div class="tb-pie-wrap"><div class="tb-pie" style="background:conic-gradient(${stops})"></div><div class="tb-pie-legend">${positives.map((item,idx)=>`<span><i style="background:${PALETTE[idx%PALETTE.length]}"></i>${esc(item.label)} <b>${pct(item.value/total)}</b></span>`).join('')}</div></div>`;
+  return `<div class="tb-pie-wrap"><div class="tb-pie" style="background:conic-gradient(${stops})"></div><div class="tb-pie-legend">${positives.map(item=>`<span class="${item.isUser?'user':''}"><i style="background:${item.color}"></i>${esc(item.label)} <b>${pct(item.value)}</b></span>`).join('')}</div></div>`;
+}
+
+function marketShareItems(state, round) {
+  const companies=state.companies.map(company=>({ company, share:Number(snapshotFor(company,round).marketShare)||0 }));
+  const userRow=companies.find(x=>x.company.isUser);
+  const userShare=Math.max(0,Math.min(1,userRow?.share||0));
+  const bots=companies.filter(x=>!x.company.isUser);
+  const botTotal=bots.reduce((sum,x)=>sum+Math.max(0,x.share),0)||1;
+  const muted=['#aeb9c5','#bdc6cf','#c8d0d8','#98a7b6','#d0d6dc','#8999a9','#b4bec8','#c1c9d1','#a2afbc'];
+  return [
+    {label:userRow?.company.name||'MARKOWITZ',value:userShare,isUser:true,color:'#1f5f99'},
+    ...bots.map((row,idx)=>({
+      label:row.company.name,
+      value:(Math.max(0,row.share)/botTotal)*(1-userShare),
+      isUser:false,
+      color:muted[idx%muted.length]
+    }))
+  ].sort((a,b)=>b.value-a.value);
+}
+
+function marketShareContext(state, round) {
+  const items=marketShareItems(state,round);
+  const user=items.find(x=>x.isUser);
+  const rank=items.findIndex(x=>x.isUser)+1;
+  const avg=1/Math.max(items.length,1);
+  const gap=(user?.value||0)-avg;
+  return { items, rank, avg, gap };
 }
 
 function currentSnapshot(state, round) {
   return snapshotFor(userCompany(state), round);
 }
 
+function deltaCell(current, previous, kind='pct') {
+  if (!previous || !Number.isFinite(Number(previous))) return { html:'—', className:'tb-delta neutral' };
+  const c=Number(current)||0, p=Number(previous)||0;
+  let display='—', positive=c>=p;
+  if (kind==='pp') {
+    const diff=(c-p)*100;
+    display=`${diff>=0?'▲':'▼'} ${Math.abs(diff).toFixed(2)}pp`;
+  } else if (kind==='money') {
+    const diff=c-p;
+    display=`${diff>=0?'▲':'▼'} ${money(Math.abs(diff))}`;
+  } else {
+    const diff=p===0?null:(c-p)/Math.abs(p);
+    display=diff===null?'—':`${diff>=0?'▲':'▼'} ${Math.abs(diff*100).toFixed(1)}%`;
+    positive=diff===null?true:diff>=0;
+  }
+  return { html:display, className:`tb-delta ${positive?'up':'down'}` };
+}
+
+function dashboardKpi(label,value,note='',tone='') {
+  return `<div class="tb-kpi"><span>${esc(label)}</span><strong class="${tone}">${value}</strong><small>${esc(note)}</small></div>`;
+}
+
 export function parityDashboardView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
+  const company=userCompany(state);
   const user=currentSnapshot(state,round);
+  const completed=availableRounds(state);
+  const prevRound=completed.filter(r=>r<round).at(-1);
+  const previous=Number.isFinite(prevRound) ? snapshotFor(company,prevRound) : null;
   const companies=state.companies.map(c=>({company:c,s:snapshotFor(c,round)}));
   const ranked=[...companies].sort((a,b)=>(b.s.npv||0)-(a.s.npv||0));
-  const rank=ranked.findIndex(x=>x.company.isUser)+1;
-  const rounds=availableRounds(state);
-  const revenueSeries=[{
-    name:userCompany(state).name,
-    values:rounds.map(r=>snapshotFor(userCompany(state),r).revenue||0),
-    highlight:true
-  }];
-  const shareItems=companies.map(({company,s})=>({label:company.name,value:s.marketShare||0}));
+  const npvRank=ranked.findIndex(x=>x.company.isUser)+1;
+  const shareCtx=marketShareContext(state,round);
+
   const summaryRows=[
-    [{text:'Revenue'},{html:money(user.revenue)}],
-    [{text:'Net profit'},{html:money(user.netProfit),className:user.netProfit>=0?'good':'bad'}],
-    [{text:'Market share'},{html:pct(user.marketShare)}],
-    [{text:'Unit cost'},{html:money(user.unitCost)}],
-    [{text:'Selling price'},{html:money(user.price)}],
-    [{text:'Cash'},{html:money(user.cash)}],
-    [{text:'Practice NPV'},{html:money(user.npv)}],
-    [{text:'Rank'},{html:`#${rank} / ${state.companies.length}`}]
+    [{text:'Revenue'},{html:money(user.revenue)},deltaCell(user.revenue,previous?.revenue)],
+    [{text:'Net profit'},{html:money(user.netProfit),className:user.netProfit>=0?'good':'bad'},deltaCell(user.netProfit,previous?.netProfit)],
+    [{text:'Market share'},{html:pct(user.marketShare)},deltaCell(user.marketShare,previous?.marketShare,'pp')],
+    [{text:'Unit cost'},{html:money(user.unitCost)},deltaCell(user.unitCost,previous?.unitCost,'money')],
+    [{text:'Selling price'},{html:money(user.price)},deltaCell(user.price,previous?.price,'money')],
+    [{text:'Cash'},{html:money(user.cash)},deltaCell(user.cash,previous?.cash)],
+    [{text:'Practice NPV'},{html:money(user.npv)},deltaCell(user.npv,previous?.npv)],
+    [{text:'Rank'},{html:`#${npvRank} / ${state.companies.length}`},{html:'—',className:'tb-delta neutral'}]
   ];
+
+  const revenueBlock = completed.length < 2
+    ? `<div class="tb-trend-empty"><span>Revenue R0</span><strong>${money(user.revenue)}</strong><p>Trend muncul setelah Round 1.</p></div>`
+    : lineChart([{
+        name:company.name,
+        values:completed.map(r=>snapshotFor(company,r).revenue||0),
+        highlight:true
+      }],completed,v=>money(v));
+
   return page('Management Dashboard','Compact operating and financial overview aligned to the recorded MBS layout.',state,round,`
+    <div class="tb-kpi-strip">
+      ${dashboardKpi('Practice NPV',money(user.npv),`Rank #${npvRank}/${state.companies.length}`)}
+      ${dashboardKpi('Net Profit',money(user.netProfit),`Round ${round}`,user.netProfit>=0?'good':'bad')}
+      ${dashboardKpi('Market Share',pct(user.marketShare),`Rank #${shareCtx.rank}/${state.companies.length}`)}
+      ${dashboardKpi('Cash',money(user.cash),user.overdraft>0?`Overdraft ${money(user.overdraft)}`:'No overdraft')}
+      ${dashboardKpi('Unit Cost',money(user.unitCost),`Price ${money(user.price)}`,user.unitCost>user.price?'bad':'')}
+    </div>
     <div class="tb-dashboard-grid">
-      ${panel('Business Summary',dataTable(['Measure','Value'],summaryRows),'tb-span-4')}
-      ${panel('Revenue Trend',lineChart(revenueSeries,rounds,v=>money(v)),'tb-span-8')}
-      ${panel('Market Share',pieChart(shareItems),'tb-span-5')}
+      ${panel('Business Summary',dataTable(['Measure','Value','Δ vs prior'],summaryRows),'tb-span-4')}
+      ${panel('Revenue Trend',revenueBlock,'tb-span-8')}
+      ${panel('Market Share',`${pieChart(shareCtx.items)}<div class="tb-share-meta"><span>Share rank <b>#${shareCtx.rank}/${state.companies.length}</b></span><span>Market average <b>${pct(shareCtx.avg)}</b></span><span>vs average <b class="${shareCtx.gap>=0?'good':'bad'}">${shareCtx.gap>=0?'+':''}${(shareCtx.gap*100).toFixed(2)}pp</b></span></div>`,'tb-span-5')}
       ${panel('Operating Position',dataTable(['Measure','Value'],[
         [{text:'Potential demand'},{html:num(user.potentialDemand)}],
         [{text:'Sales'},{html:num(user.sales)}],
@@ -205,7 +279,8 @@ export function productImageView(state, requestedRound) {
     const s=snapshotFor(company,round);
     const x=8+(Number(s.quality||0)*84);
     const y=92-(Number(s.image||0)*84);
-    return `<g><circle cx="${x}" cy="${y}" r="${company.isUser?2.8:2}" fill="${PALETTE[idx%PALETTE.length]}"/><text x="${x+2.5}" y="${y-2}" class="tb-scatter-label">${esc(company.name)}</text></g>`;
+    const color=company.isUser ? '#1f5f99' : '#aeb9c5';
+    return `<g><circle cx="${x}" cy="${y}" r="${company.isUser?3.1:2}" fill="${color}"/><text x="${x+2.5}" y="${y-2}" class="tb-scatter-label">${esc(company.name)}</text></g>`;
   }).join('');
   const scatter=`<div class="tb-scatter"><svg viewBox="0 0 100 100"><line x1="8" y1="92" x2="95" y2="92"/><line x1="8" y1="92" x2="8" y2="5"/>${points}<text x="50" y="99" class="tb-scatter-axis">Quality →</text><text x="1" y="50" class="tb-scatter-axis" transform="rotate(-90 1 50)">Image →</text></svg></div>`;
   return page('Product Image','Competitive positioning using the quality and image variables available in the simulator.',state,round,
@@ -215,13 +290,22 @@ export function productImageView(state, requestedRound) {
 
 export function marketShareView(state, requestedRound) {
   const round=selectedRound(state,requestedRound);
-  const items=state.companies.map(company=>({label:company.name,value:snapshotFor(company,round).marketShare||0}));
-  const rows=state.companies.map(company=>{
-    const s=snapshotFor(company,round);
-    return [{html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},{html:pct(s.marketShare)},{html:num(s.sales)},{html:money(s.revenue)}];
-  });
+  const ctx=marketShareContext(state,round);
+  const shareByName=new Map(ctx.items.map(item=>[item.label,item.value]));
+  const rows=state.companies
+    .map(company=>{
+      const s=snapshotFor(company,round);
+      return { company, s, displayShare:shareByName.get(company.name) ?? Number(s.marketShare||0) };
+    })
+    .sort((a,b)=>b.displayShare-a.displayShare)
+    .map(({company,s,displayShare})=>[
+      {html:`<span class="${company.isUser?'tb-user-dot':''}">${esc(company.name)}</span>`},
+      {html:pct(displayShare)},
+      {html:num(s.sales)},
+      {html:money(s.revenue)}
+    ]);
   return page('Market Share','Overall market-share view derived from company results in the selected round.',state,round,
-    `<div class="tb-two-col">${panel('Overall Market Share',pieChart(items))}${panel('Share Table',dataTable(['Company','Share','Sales','Revenue'],rows))}</div>`
+    `<div class="tb-two-col">${panel('Overall Market Share',`${pieChart(ctx.items)}<div class="tb-share-meta"><span>MARKOWITZ rank <b>#${ctx.rank}/${state.companies.length}</b></span><span>Market average <b>${pct(ctx.avg)}</b></span><span>vs average <b class="${ctx.gap>=0?'good':'bad'}">${ctx.gap>=0?'+':''}${(ctx.gap*100).toFixed(2)}pp</b></span></div>`)}${panel('Share Table',dataTable(['Company','Share','Sales','Revenue'],rows))}</div>`
   );
 }
 
