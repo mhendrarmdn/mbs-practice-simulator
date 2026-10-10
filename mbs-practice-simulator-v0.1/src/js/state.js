@@ -1,4 +1,11 @@
-import { BOT_STRATEGIES, MAX_ROUNDS, ROUND1_REFERENCE, STORAGE_KEY } from './config.js';
+import {
+  BOT_STRATEGIES,
+  DEFAULT_TIMER_SECONDS,
+  LEGACY_STORAGE_KEYS,
+  MAX_ROUNDS,
+  ROUND1_REFERENCE,
+  STORAGE_KEY
+} from './config.js';
 import { clamp, deepClone, rngFrom } from './utils.js';
 
 export function snapshot(company, round, decision, economy) {
@@ -6,6 +13,7 @@ export function snapshot(company, round, decision, economy) {
     round,
     decision: decision ? deepClone(decision) : deepClone(company.lastDecision),
     economy: deepClone(economy),
+    event: deepClone(economy?.event || null),
     price: company.price,
     quality: company.quality,
     image: company.image,
@@ -75,6 +83,7 @@ export function baselineUser(team = 'MARKOWITZ') {
     growth: 1,
     seasonal: 1,
     marketGrowth: 1,
+    rawIndex: 1,
     event: null
   }));
 
@@ -87,7 +96,6 @@ function botBaseline(name, strategy, index) {
   company.id = `bot${index}`;
   company.strategy = strategy;
   company.isUser = false;
-
   company.price = 5.8 + random() * 1.5;
   company.quality = clamp(0.22 + random() * 0.22, 0.1, 0.9);
   company.image = clamp(0.42 + random() * 0.28, 0.1, 0.9);
@@ -104,28 +112,37 @@ function botBaseline(name, strategy, index) {
   company.equity = 9500000 + random() * 2600000;
   company.npv = company.equity;
   company.balancedScore = 58 + random() * 27;
+  company.roe = company.netProfit / Math.max(company.equity, 1);
+  company.profitMargin = company.netProfit / Math.max(company.revenue, 1);
   company.history = [snapshot(company, 0, null, {
     priceIndex: 100,
     growth: 1,
     seasonal: 1,
     marketGrowth: 1,
+    rawIndex: 1,
     event: null
   })];
-
   return company;
 }
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '0.1.0',
+    version: '0.2.0',
     roomCode: '',
     roomKey: '',
     teamName: team.toUpperCase(),
     currentRound: 0,
     maxRounds: MAX_ROUNDS,
+    mode: 'training',
+    timerSeconds: DEFAULT_TIMER_SECONDS,
+    timerRemaining: DEFAULT_TIMER_SECONDS,
+    decisionLocked: false,
+    lockReason: '',
     lastEvent: null,
+    eventHistory: [],
     economy: null,
     surpriseMode: true,
+    sensitivity: { key: 'price', deltaPct: 10 },
     companies: [
       baselineUser(team),
       ...BOT_STRATEGIES.map((item, i) => botBaseline(item[0], item[1], i + 1))
@@ -136,10 +153,38 @@ export function makeInitialState(team = 'MARKOWITZ') {
   };
 }
 
+export function migrateState(input) {
+  if (!input || !Array.isArray(input.companies)) return makeInitialState();
+  const state = deepClone(input);
+  state.version = '0.2.0';
+  state.mode = ['training', 'competition', 'sandbox'].includes(state.mode) ? state.mode : 'training';
+  state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
+  state.timerRemaining = Number.isFinite(Number(state.timerRemaining))
+    ? Number(state.timerRemaining)
+    : state.timerSeconds;
+  state.decisionLocked = Boolean(state.decisionLocked);
+  state.lockReason = state.lockReason || '';
+  state.eventHistory = Array.isArray(state.eventHistory) ? state.eventHistory : [];
+  if (state.lastEvent && state.eventHistory.length === 0 && state.currentRound > 0) {
+    state.eventHistory.push({ round: state.currentRound, ...state.lastEvent });
+  }
+  state.sensitivity = state.sensitivity || { key: 'price', deltaPct: 10 };
+  state.maxRounds = state.maxRounds || MAX_ROUNDS;
+  return state;
+}
+
 export function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const current = localStorage.getItem(STORAGE_KEY);
+    if (current) return migrateState(JSON.parse(current));
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      const raw = localStorage.getItem(legacyKey);
+      if (raw) {
+        const migrated = migrateState(JSON.parse(raw));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        return migrated;
+      }
+    }
   } catch (error) {
     console.warn('Could not load local state:', error);
   }
