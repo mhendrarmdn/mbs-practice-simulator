@@ -19,6 +19,7 @@ import { bodyForTab, shell } from './views.js';
 import { deepClone } from './utils.js';
 import { exportGame, importGame } from './persistence.js';
 import { getThemePreference, initTheme, setThemePreference } from './theme.js';
+import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -195,6 +196,20 @@ async function updateCaptainSetting(mutator) {
   return true;
 }
 
+
+function exportCompetitionBrief() {
+  const markdown = buildCompetitionBriefMarkdown(state);
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `mbs-competition-brief-${String(state.teamName || 'team').toLowerCase()}-r${state.currentRound}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
@@ -334,6 +349,9 @@ function bindEvents() {
           if (state.roomCode) await commitCanonicalState();
           activeTab = 'dashboard';
         }
+
+      } else if (action === 'export-competition-brief') {
+        exportCompetitionBrief();
 
       } else if (action === 'export-save') {
         exportGame(state);
