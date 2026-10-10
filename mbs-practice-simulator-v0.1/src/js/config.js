@@ -1,7 +1,8 @@
-export const STORAGE_KEY = 'mbs_practice_v02';
-export const LEGACY_STORAGE_KEYS = ['mbs_practice_v01'];
+export const STORAGE_KEY = 'mbs_practice_v03';
+export const LEGACY_STORAGE_KEYS = ['mbs_practice_v02', 'mbs_practice_v01'];
 export const CONFIG_KEY = 'mbs_supabase_config_v01';
 export const ROLE_KEY = 'mbs_room_role_v01';
+export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
 export const THEME_KEY = 'mbs_theme_v02';
 
 export const MAX_ROUNDS = 4;

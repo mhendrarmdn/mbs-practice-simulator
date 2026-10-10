@@ -1,5 +1,5 @@
 import { OBSERVED_ANCHORS, TRAINING_PROXY_NOTES } from './config.js';
-import { getSupabaseConfig, isCaptain } from './supabase.js';
+import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { esc, fixed, money, num, pct } from './utils.js';
 
@@ -28,17 +28,29 @@ function statsList(rows) {
   return `<dl class="stats-list">${rows.map(([k, v, cls = '']) => `<div><dt>${k}</dt><dd class="${cls}">${v}</dd></div>`).join('')}</dl>`;
 }
 
+function roomPresence(state) {
+  if (!state.roomCode) return '';
+  const members = state.roomMembers || [];
+  return `<div class="presence-list">${members.length ? members.map(member => `
+    <div class="presence-row">
+      <span class="presence-dot ${member.online ? 'online' : ''}"></span>
+      <div><strong>${esc(member.displayName || 'Member')}</strong><small>${member.role === 'captain' ? 'Captain' : 'Member'} · ${member.online ? 'online' : 'away'}</small></div>
+    </div>`).join('') : '<div class="empty">Presence belum tersedia. Jalankan schema v0.3 untuk member list.</div>'}</div>`;
+}
+
 export function shell(state, activeTab, themePreference) {
   const timer = Math.max(0, Number(state.timerRemaining || 0));
   const mm = String(Math.floor(timer / 60)).padStart(2, '0');
   const ss = String(timer % 60).padStart(2, '0');
+  const session = getRoomSession();
+  const online = (state.roomMembers || []).filter(member => member.online).length;
 
   return `
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.2</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v0.3</small></div>
         </div>
         <nav class="nav">
           ${navButton('dashboard', 'Dashboard', activeTab)}
@@ -62,10 +74,10 @@ export function shell(state, activeTab, themePreference) {
         <header class="topbar">
           <div class="top-left">
             <strong>${esc(state.teamName)}</strong>
-            <small>ROUND ${state.currentRound} / ${state.maxRounds}</small>
+            <small>ROUND ${state.currentRound} / ${state.maxRounds}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
           </div>
           <div class="top-actions">
-            <select id="modeSelect" class="top-control" aria-label="Simulation mode">
+            <select id="modeSelect" class="top-control" aria-label="Simulation mode" ${state.roomCode && !isCaptain() ? 'disabled' : ''}>
               <option value="training" ${state.mode === 'training' ? 'selected' : ''}>Training</option>
               <option value="competition" ${state.mode === 'competition' ? 'selected' : ''}>Competition</option>
               <option value="sandbox" ${state.mode === 'sandbox' ? 'selected' : ''}>Sandbox</option>
@@ -73,7 +85,7 @@ export function shell(state, activeTab, themePreference) {
             <span class="badge timer-badge ${state.mode === 'competition' && timer <= 120 ? 'danger-badge' : ''}">
               ${state.mode === 'competition' ? `◷ ${mm}:${ss}` : 'NO TIMER'}
             </span>
-            <span class="badge" id="syncBadge">${state.roomCode ? '● Online' : '● Saved'}</span>
+            <span class="badge" id="syncBadge">${state.roomCode ? `● ${online || 1} online` : '● Saved'}</span>
             <select id="themeSelect" class="top-control" aria-label="Theme">
               <option value="system" ${themePreference === 'system' ? 'selected' : ''}>◐ System</option>
               <option value="light" ${themePreference === 'light' ? 'selected' : ''}>☀ Light</option>
@@ -113,9 +125,7 @@ export function dashboardView(state) {
       <div><div class="eyebrow">EXECUTIVE COCKPIT</div><h1>Dashboard</h1><p class="subtitle">Decision → operation → financial impact, dalam satu ronde yang konsisten.</p></div>
       <div class="actions"><button class="secondary" data-action="export-save">⇩ Export Save</button><button class="primary" data-action="goto-decisions" ${state.currentRound >= state.maxRounds ? 'disabled' : ''}>▶ Next Decision</button></div>
     </div>
-
     ${latestEvent ? `<div class="event"><span>✦</span><div><strong>Latest scenario: ${esc(latestEvent.title)}</strong><span class="event-copy">Round ${latestEvent.round} · ${esc(latestEvent.text)}</span></div></div>` : ''}
-
     <section class="metric-grid">
       ${metric('Practice NPV', money(user.npv), `Rank #${rank} dari ${sorted.length}`)}
       ${metric('Net Profit', money(user.netProfit), 'Current round', user.netProfit >= 0 ? 'good' : 'bad')}
@@ -124,13 +134,10 @@ export function dashboardView(state) {
       ${metric('Cash', money(user.cash), user.overdraft ? `Overdraft ${money(user.overdraft)}` : 'No overdraft')}
       ${metric('Balanced Score', fixed(user.balancedScore, 1), 'Practice proxy / 100')}
     </section>
-
     <section class="dashboard-grid">
       <div class="card">
         ${cardHead('ROUND TREND', 'Revenue & Profit', '⌁')}
-        <div class="trend-rows">
-          ${user.history.map(item => `<div class="trend-row"><span>R${item.round}</span><div class="bar"><div style="width:${Math.max(4, item.revenue / revenueMax * 100)}%"></div></div><strong>${money(item.revenue)}</strong><em class="${item.netProfit >= 0 ? 'good' : 'bad'}">${money(item.netProfit)}</em></div>`).join('')}
-        </div>
+        <div class="trend-rows">${user.history.map(item => `<div class="trend-row"><span>R${item.round}</span><div class="bar"><div style="width:${Math.max(4, item.revenue / revenueMax * 100)}%"></div></div><strong>${money(item.revenue)}</strong><em class="${item.netProfit >= 0 ? 'good' : 'bad'}">${money(item.netProfit)}</em></div>`).join('')}</div>
       </div>
       <div class="card">
         ${cardHead('HEALTH MONITOR', 'Management Alerts', '△')}
@@ -153,15 +160,13 @@ export function decisionsView(state) {
 
   return `
     <div class="page-head">
-      <div><div class="eyebrow">ROUND ${Math.min(state.currentRound + 1, state.maxRounds)}</div><h1>Business Decisions</h1><p class="subtitle">Susun delapan keputusan utama. Competition Mode akan mengunci draft saat timer habis.</p></div>
-      <button class="secondary" data-action="toggle-lock">▣ ${locked ? 'Unlock Draft' : 'Lock Draft'}</button>
+      <div><div class="eyebrow">ROUND ${Math.min(state.currentRound + 1, state.maxRounds)}</div><h1>Business Decisions</h1><p class="subtitle">Semua anggota room dapat mengubah shared draft. Hanya Captain yang dapat lock dan submit ronde.</p></div>
+      <button class="secondary" data-action="toggle-lock" ${!captain ? 'disabled' : ''}>▣ ${locked ? 'Unlock Draft' : 'Lock Draft'}</button>
     </div>
-
     ${locked ? `<div class="event"><span>▣</span><div><strong>Draft locked</strong><span class="event-copy">${esc(state.lockReason || 'Manual lock')}</span></div></div>` : ''}
-
     <section class="decision-layout">
       <div class="card">
-        ${cardHead('MANAGEMENT INPUT', 'Decision Form', '⌁')}
+        ${cardHead('MANAGEMENT INPUT', 'Shared Decision Form', '⌁')}
         <div class="input-grid">
           ${field('Price', 'price', d.price, '0.10', '$ / unit', locked)}
           ${field('Marketing', 'marketing', d.marketing, '10000', '$', locked)}
@@ -176,6 +181,7 @@ export function decisionsView(state) {
           <button class="primary" data-action="submit-round" ${complete || !captain || locked ? 'disabled' : ''}>▣ ${complete ? 'GAME COMPLETE' : captain ? 'Lock & Submit Round' : 'Captain Submits Round'}</button>
           <button class="secondary" data-action="load-r1">Load R1 Reference</button>
         </div>
+        ${state.roomCode && !captain ? '<div class="callout">Member mode: kamu bisa mengedit shared draft secara live, tetapi perubahan mode, lock, scenario, reset, dan submit tetap dikendalikan Captain.</div>' : ''}
       </div>
 
       <div class="side-stack">
@@ -222,8 +228,7 @@ function competitionTable(state) {
 export function statusView(state) {
   const user = state.companies.find(company => company.isUser);
   const economy = state.economy;
-  return `
-    <div class="page-head"><div><div class="eyebrow">MARKET + OPERATIONS</div><h1>Status</h1><p class="subtitle">Apa yang terjadi setelah keputusan dijalankan.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">MARKET + OPERATIONS</div><h1>Status</h1><p class="subtitle">Apa yang terjadi setelah keputusan dijalankan.</p></div></div>
     <section class="triple-grid">
       <div class="card">${cardHead('ECONOMY','Economic Environment')}${statsList([['Price Index',economy?fixed(economy.priceIndex,2):'100.00'],['Growth Indicator',economy?fixed(economy.growth*100,2):'100.00'],['Seasonal Indicator',economy?fixed(economy.seasonal*100,2):'100.00']])}</div>
       <div class="card">${cardHead('PRODUCT','Image & Quality')}${statsList([['Quality',fixed(user.quality,3)],['Image',fixed(user.image,3)],['Price',money(user.price)]])}</div>
@@ -234,8 +239,7 @@ export function statusView(state) {
 
 export function analysisView(state) {
   const user = state.companies.find(company => company.isUser);
-  return `
-    <div class="page-head"><div><div class="eyebrow">DIAGNOSIS</div><h1>Analysis</h1><p class="subtitle">Bukan hanya apa yang terjadi, tetapi mengapa.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">DIAGNOSIS</div><h1>Analysis</h1><p class="subtitle">Bukan hanya apa yang terjadi, tetapi mengapa.</p></div></div>
     <section class="dashboard-grid">
       <div class="card">${cardHead('PRODUCTION & LOGISTICS','Supply Chain Diagnostic','▦')}${statsList([['Potential Demand',num(user.potentialDemand)],['Actual Sales',num(user.sales)],['Unserved Demand',num(Math.max(0,user.potentialDemand-user.sales))],['Production',num(user.production)],['Capacity Utilization',pct(user.production/Math.max(user.capacity,1))],['RM Inventory',num(user.rawMaterial)],['FG Inventory',num(user.finishedGoods)]])}</div>
       <div class="card">${cardHead('COST STRUCTURE','Unit Economics','$')}${statsList([['Price / Unit',money(user.price)],['Total Cost / Unit',money(user.unitCost)],['Spread / Unit',money(user.price-user.unitCost),user.price-user.unitCost>=0?'good':'bad'],['Profit Margin',pct(user.profitMargin)],['ROE',pct(user.roe)],['Current Ratio',fixed(user.currentRatio,2)+'x']])}${diagnosticText(user)}</div>
@@ -244,8 +248,7 @@ export function analysisView(state) {
 
 export function financialsView(state) {
   const user = state.companies.find(company => company.isUser);
-  return `
-    <div class="page-head"><div><div class="eyebrow">FINAL RECONCILIATION</div><h1>Financial Statements</h1><p class="subtitle">Gunakan halaman ini sebagai pengecekan final setiap ronde.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">FINAL RECONCILIATION</div><h1>Financial Statements</h1><p class="subtitle">Gunakan halaman ini sebagai pengecekan final setiap ronde.</p></div></div>
     <section class="triple-grid">
       <div class="card">${cardHead('FINANCIAL','Income Statement')}${statsList([['Revenue',money(user.revenue)],['Unit Cost',money(user.unitCost)],['Net Earnings',money(user.netProfit),user.netProfit>=0?'good':'bad'],['Profit Margin',pct(user.profitMargin)]])}</div>
       <div class="card">${cardHead('FINANCIAL','Balance Sheet Snapshot')}${statsList([['Cash',money(user.cash)],['Overdraft',money(user.overdraft),user.overdraft?'bad':''],["Owners' Equity",money(user.equity)],['Current Ratio',fixed(user.currentRatio,2)+'x']])}</div>
@@ -255,25 +258,23 @@ export function financialsView(state) {
 
 export function historyView(state) {
   const user = state.companies.find(company => company.isUser);
-  return `
-    <div class="page-head"><div><div class="eyebrow">ROUND DATABASE</div><h1>Decision History</h1><p class="subtitle">Decision dan result untuk ronde yang sama disimpan pada baris yang sama.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">ROUND DATABASE</div><h1>Decision History</h1><p class="subtitle">Decision dan result untuk ronde yang sama disimpan pada baris yang sama.</p></div></div>
     <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>Round</th><th>Price</th><th>Marketing</th><th>R&D</th><th>Production</th><th>Sales</th><th>Revenue</th><th>Unit Cost</th><th>Net Profit</th><th>Δ Profit</th><th>NPV</th></tr></thead><tbody>${user.history.map((item,i)=>{const prev=user.history[i-1];const change=prev&&prev.netProfit?((item.netProfit-prev.netProfit)/Math.abs(prev.netProfit)):0;return `<tr><td>R${item.round}</td><td>${money(item.decision?.price||item.price)}</td><td>${money(item.decision?.marketing||0)}</td><td>${money(item.decision?.rd||0)}</td><td>${num(item.decision?.production||item.production)}</td><td>${num(item.sales)}</td><td>${money(item.revenue)}</td><td>${money(item.unitCost)}</td><td class="${item.netProfit>=0?'good':'bad'}">${money(item.netProfit)}</td><td class="${change>=0?'good':'bad'}">${i?pct(change):'—'}</td><td>${money(item.npv)}</td></tr>`}).join('')}</tbody></table></div></div>`;
 }
 
 export function leaderboardView(state) {
   const sorted = [...state.companies].sort((a,b)=>b.npv-a.npv);
-  return `
-    <div class="page-head"><div><div class="eyebrow">10-COMPANY MARKET</div><h1>Leaderboard</h1><p class="subtitle">Ranking menggunakan Practice NPV proxy yang transparan.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">10-COMPANY MARKET</div><h1>Leaderboard</h1><p class="subtitle">Ranking menggunakan Practice NPV proxy yang transparan.</p></div></div>
     <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Company</th><th>Strategy</th><th>Practice NPV</th><th>Net Profit</th><th>Share</th><th>ROE</th><th>Score</th></tr></thead><tbody>${sorted.map((c,i)=>`<tr class="${c.isUser?'user-row':''}"><td class="${i===0?'rank1':''}">${i+1}</td><td>${esc(c.name)}</td><td>${esc(c.strategy)}</td><td>${money(c.npv)}</td><td class="${c.netProfit>=0?'good':'bad'}">${money(c.netProfit)}</td><td>${pct(c.marketShare)}</td><td>${pct(c.roe)}</td><td>${fixed(c.balancedScore,1)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 
 export function scenariosView(state) {
-  return `
-    <div class="page-head"><div><div class="eyebrow">SURPRISE ROUND</div><h1>Scenario Center</h1><p class="subtitle">Event eksternal memengaruhi demand, raw material, atau capacity.</p></div></div>
+  const captain = isCaptain() || !state.roomCode;
+  return `<div class="page-head"><div><div class="eyebrow">SURPRISE ROUND</div><h1>Scenario Center</h1><p class="subtitle">Event eksternal memengaruhi demand, raw material, atau capacity.</p></div></div>
     <section class="scenario-grid">
       <div class="card">
         ${cardHead('SETTINGS','Scenario Rules','⚙')}
-        <button class="scenario-toggle ${state.surpriseMode?'on':''}" data-action="toggle-surprise"><strong>${state.surpriseMode?'ON':'OFF'}</strong><span>Surprise Events</span><small>Mulai berpeluang muncul sejak Round 2.</small></button>
+        <button class="scenario-toggle ${state.surpriseMode?'on':''}" data-action="toggle-surprise" ${!captain ? 'disabled' : ''}><strong>${state.surpriseMode?'ON':'OFF'}</strong><span>Surprise Events</span><small>Mulai berpeluang muncul sejak Round 2.</small></button>
       </div>
       <div class="card">
         ${cardHead('EVENT HISTORY','What Changed','✦')}
@@ -283,43 +284,65 @@ export function scenariosView(state) {
 }
 
 export function modelView() {
-  return `
-    <div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Pisahkan observed calibration anchors dari training-model approximations.</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Pisahkan observed calibration anchors dari training-model approximations.</p></div></div>
     <section class="dashboard-grid">
-      <div class="card">
-        ${cardHead('OBSERVED DATA','Calibration Anchors','◈')}
-        <div class="anchor-grid">${OBSERVED_ANCHORS.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong><small>Observed calibration anchor</small></div>`).join('')}</div>
-      </div>
-      <div class="card">
-        ${cardHead('TRAINING MODEL','Approximation Boundary','◈')}
-        ${TRAINING_PROXY_NOTES.map(x=>`<div class="proxy-note">${esc(x)}</div>`).join('')}
-        <div class="callout">Simulator tidak mengklaim mengetahui formula proprietary TopBoss.</div>
-      </div>
+      <div class="card">${cardHead('OBSERVED DATA','Calibration Anchors','◈')}<div class="anchor-grid">${OBSERVED_ANCHORS.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong><small>Observed calibration anchor</small></div>`).join('')}</div></div>
+      <div class="card">${cardHead('TRAINING MODEL','Approximation Boundary','◈')}${TRAINING_PROXY_NOTES.map(x=>`<div class="proxy-note">${esc(x)}</div>`).join('')}<div class="callout">Simulator tidak mengklaim mengetahui formula proprietary TopBoss.</div></div>
     </section>`;
 }
 
 export function setupView(state) {
   const config = getSupabaseConfig();
+  const session = getRoomSession();
+  const captain = isCaptain() || !state.roomCode;
+
   return `
-    <div class="page-head"><div><div class="eyebrow">TEAM WORKSPACE</div><h1>Room & Setup</h1><p class="subtitle">Local Practice langsung jalan; Supabase opsional untuk shared room.</p></div></div>
+    <div class="page-head"><div><div class="eyebrow">TEAM WORKSPACE</div><h1>Room & Setup</h1><p class="subtitle">v0.3 menambahkan member presence, Captain authority, atomic shared draft, dan revision-safe room state.</p></div></div>
     <div class="setup-grid">
       <div class="card">
         ${cardHead('CURRENT GAME','Game & Recovery','⚙')}
-        <div class="field"><label><span>Team Name</span><span>identity</span></label><input id="setupTeam" value="${esc(state.teamName)}"></div>
-        <div class="actions" style="margin-top:16px"><button class="secondary" data-action="rename-team">Save Team Name</button><button class="danger" data-action="reset-game">Reset Game</button><button class="secondary" data-action="export-save">⇩ Export JSON</button><button class="secondary" data-action="import-save">⇧ Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
-        ${state.roomCode?`<hr><div class="small">ROOM CODE</div><div class="code-box">${esc(state.roomCode)}</div><div class="small room-key-label">ROOM KEY</div><div class="code-box">${esc(state.roomKey)}</div>`:''}
+        <div class="field"><label><span>Team Name</span><span>identity</span></label><input id="setupTeam" value="${esc(state.teamName)}" ${!captain ? 'disabled' : ''}></div>
+        <div class="actions" style="margin-top:16px">
+          <button class="secondary" data-action="rename-team" ${!captain ? 'disabled' : ''}>Save Team Name</button>
+          <button class="danger" data-action="reset-game" ${!captain ? 'disabled' : ''}>Reset Game</button>
+          <button class="secondary" data-action="export-save">⇩ Export JSON</button>
+          <button class="secondary" data-action="import-save">⇧ Import JSON</button>
+          <input id="importFile" type="file" accept=".json,application/json" hidden>
+        </div>
+        ${state.roomCode ? `
+          <hr>
+          <div class="room-meta-grid">
+            <div><span>ROOM CODE</span><strong>${esc(state.roomCode)}</strong></div>
+            <div><span>REVISION</span><strong>#${num(state.revision || 0)}</strong></div>
+            <div><span>YOUR ROLE</span><strong>${esc(session.role || 'room')}</strong></div>
+          </div>
+          <div class="small room-key-label">ROOM KEY</div><div class="code-box">${esc(state.roomKey)}</div>
+          <div class="actions" style="margin-top:12px"><button class="secondary" data-action="leave-room">Leave Room</button></div>
+        ` : ''}
       </div>
+
       <div class="card">
         ${cardHead('SHARED ROOM','Supabase Connection','◎')}
         <div class="field"><label><span>Supabase Project URL</span><span>public</span></label><input id="supabaseUrl" placeholder="https://xxxxx.supabase.co" value="${esc(config.url||'')}"></div>
         <div class="field spaced"><label><span>Supabase Anon / Publishable Key</span><span>public key</span></label><input id="supabaseKey" type="password" placeholder="Public anon key" value="${esc(config.key||'')}"></div>
-        <div class="actions" style="margin-top:16px"><button class="primary" data-action="create-room">Create Online Room</button></div>
-        <hr>
-        <div class="card-head"><div><span>JOIN</span><h2>Existing Room</h2></div></div>
-        <div class="field"><label><span>Room Code</span><span>e.g. MBS-4821</span></label><input id="joinCode" placeholder="MBS-4821"></div>
-        <div class="field spaced"><label><span>Room Key</span><span>8 chars</span></label><input id="joinKey" placeholder="XXXXXXXX"></div>
-        <div class="actions" style="margin-top:16px"><button class="secondary" data-action="join-room">Join Room</button></div>
-        <div class="callout">Gunakan public anon/publishable key saja. Jangan pernah menaruh service_role key di browser.</div>
+
+        ${!state.roomCode ? `
+          <hr>
+          <div class="field"><label><span>Your Display Name</span><span>captain</span></label><input id="memberName" placeholder="Mahen"></div>
+          <div class="actions" style="margin-top:16px"><button class="primary" data-action="create-room">Create Online Room</button></div>
+          <hr>
+          <div class="card-head"><div><span>JOIN</span><h2>Existing Room</h2></div></div>
+          <div class="field"><label><span>Your Display Name</span><span>member</span></label><input id="joinName" placeholder="Team member"></div>
+          <div class="field spaced"><label><span>Room Code</span><span>e.g. MBS-4821</span></label><input id="joinCode" placeholder="MBS-4821"></div>
+          <div class="field spaced"><label><span>Room Key</span><span>8 chars</span></label><input id="joinKey" placeholder="XXXXXXXX"></div>
+          <div class="actions" style="margin-top:16px"><button class="secondary" data-action="join-room">Join Room</button></div>
+        ` : `
+          <hr>
+          ${cardHead('TEAM PRESENCE','Room Members','◉')}
+          ${roomPresence(state)}
+        `}
+
+        <div class="callout">Untuk fitur v0.3 penuh, jalankan schema SQL terbaru sekali di Supabase. Jika belum, aplikasi tetap mencoba legacy room mode.</div>
       </div>
     </div>`;
 }

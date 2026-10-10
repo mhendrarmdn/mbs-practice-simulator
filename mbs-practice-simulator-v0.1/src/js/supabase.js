@@ -1,4 +1,4 @@
-import { CONFIG_KEY, ROLE_KEY } from './config.js';
+import { CONFIG_KEY, ROLE_KEY, ROOM_SESSION_KEY } from './config.js';
 
 export function getSupabaseConfig() {
   try {
@@ -15,11 +15,27 @@ export function saveSupabaseConfig(url, key) {
   }));
 }
 
+export function getRoomSession() {
+  try {
+    return JSON.parse(localStorage.getItem(ROOM_SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveRoomSession(session) {
+  localStorage.setItem(ROOM_SESSION_KEY, JSON.stringify(session || {}));
+  if (session?.role) localStorage.setItem(ROLE_KEY, session.role);
+}
+
+export function clearRoomSession() {
+  localStorage.removeItem(ROOM_SESSION_KEY);
+  localStorage.removeItem(ROLE_KEY);
+}
+
 export async function rpc(name, params) {
   const config = getSupabaseConfig();
-  if (!config.url || !config.key) {
-    throw new Error('Supabase URL / anon key belum diset.');
-  }
+  if (!config.url || !config.key) throw new Error('Supabase URL / anon key belum diset.');
 
   const response = await fetch(`${config.url}/rest/v1/rpc/${name}`, {
     method: 'POST',
@@ -32,8 +48,17 @@ export async function rpc(name, params) {
   });
 
   const text = await response.text();
-  if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(text || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return text ? JSON.parse(text) : null;
+}
+
+function missingRpc(error) {
+  const text = String(error?.message || '');
+  return error?.status === 404 || text.includes('PGRST202') || text.includes('Could not find the function');
 }
 
 export function randomRoomCode() {
@@ -44,46 +69,157 @@ export function randomRoomCode() {
 export function randomRoomKey() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let value = '';
-  for (let i = 0; i < 8; i += 1) {
-    value += chars[Math.floor(Math.random() * chars.length)];
-  }
+  for (let i = 0; i < 8; i += 1) value += chars[Math.floor(Math.random() * chars.length)];
   return value;
 }
 
-export async function createRoom(state) {
-  await rpc('mbs_create_room', {
-    p_room_code: state.roomCode,
-    p_secret: state.roomKey,
-    p_state: state
-  });
-  localStorage.setItem(ROLE_KEY, 'captain');
-  return state;
+export function randomMemberToken() {
+  if (crypto?.randomUUID) return crypto.randomUUID().replaceAll('-', '');
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let value = '';
+  for (let i = 0; i < 32; i += 1) value += chars[Math.floor(Math.random() * chars.length)];
+  return value;
 }
 
-export async function joinRoom(roomCode, roomKey) {
+function payloadFromLegacy(state, role = isCaptain() ? 'captain' : 'member') {
+  return {
+    state,
+    revision: Number(state?.revision || 0),
+    role,
+    members: []
+  };
+}
+
+export async function createRoom(state, displayName = 'Captain') {
+  const memberToken = randomMemberToken();
+  try {
+    const payload = await rpc('mbs_create_room_v03', {
+      p_room_code: state.roomCode,
+      p_secret: state.roomKey,
+      p_captain_token: memberToken,
+      p_display_name: displayName || 'Captain',
+      p_state: state
+    });
+    saveRoomSession({
+      memberToken,
+      memberId: payload?.member_id || '',
+      displayName: payload?.display_name || displayName || 'Captain',
+      role: 'captain',
+      protocol: 'v03'
+    });
+    return payload;
+  } catch (error) {
+    if (!missingRpc(error)) throw error;
+    await rpc('mbs_create_room', {
+      p_room_code: state.roomCode,
+      p_secret: state.roomKey,
+      p_state: state
+    });
+    saveRoomSession({ memberToken, displayName, role: 'captain', protocol: 'legacy' });
+    return payloadFromLegacy(state, 'captain');
+  }
+}
+
+export async function joinRoom(roomCode, roomKey, displayName = 'Member') {
+  const memberToken = randomMemberToken();
+  try {
+    const payload = await rpc('mbs_join_room_v03', {
+      p_room_code: roomCode,
+      p_secret: roomKey,
+      p_member_token: memberToken,
+      p_display_name: displayName || 'Member'
+    });
+    saveRoomSession({
+      memberToken,
+      memberId: payload?.member_id || '',
+      displayName: payload?.display_name || displayName || 'Member',
+      role: payload?.role || 'member',
+      protocol: 'v03'
+    });
+    return payload;
+  } catch (error) {
+    if (!missingRpc(error)) throw error;
+    const remote = await rpc('mbs_get_room', { p_room_code: roomCode, p_secret: roomKey });
+    saveRoomSession({ memberToken, displayName, role: 'member', protocol: 'legacy' });
+    return payloadFromLegacy(remote, 'member');
+  }
+}
+
+export async function getRoom(roomCode, roomKey) {
+  const session = getRoomSession();
+  if (session?.protocol === 'v03' && session.memberToken) {
+    try {
+      return await rpc('mbs_get_room_v03', {
+        p_room_code: roomCode,
+        p_secret: roomKey,
+        p_member_token: session.memberToken
+      });
+    } catch (error) {
+      if (!missingRpc(error)) throw error;
+    }
+  }
+
   const remote = await rpc('mbs_get_room', {
     p_room_code: roomCode,
     p_secret: roomKey
   });
-  localStorage.setItem(ROLE_KEY, 'member');
-  return remote;
+  return payloadFromLegacy(remote);
 }
 
-export async function getRoom(roomCode, roomKey) {
-  return rpc('mbs_get_room', {
-    p_room_code: roomCode,
-    p_secret: roomKey
-  });
-}
+export async function patchDraft(state, field, value) {
+  const session = getRoomSession();
+  if (session?.protocol === 'v03' && session.memberToken) {
+    try {
+      return await rpc('mbs_patch_draft_v03', {
+        p_room_code: state.roomCode,
+        p_secret: state.roomKey,
+        p_member_token: session.memberToken,
+        p_field: field,
+        p_value: value
+      });
+    } catch (error) {
+      if (!missingRpc(error)) throw error;
+    }
+  }
 
-export async function updateRoom(state) {
-  return rpc('mbs_update_room', {
+  await rpc('mbs_update_room', {
     p_room_code: state.roomCode,
     p_secret: state.roomKey,
     p_state: state
   });
+  return payloadFromLegacy(state);
+}
+
+export async function commitRoom(state) {
+  const session = getRoomSession();
+  if (session?.protocol === 'v03' && session.memberToken) {
+    try {
+      return await rpc('mbs_commit_state_v03', {
+        p_room_code: state.roomCode,
+        p_secret: state.roomKey,
+        p_member_token: session.memberToken,
+        p_expected_revision: Number(state.revision || 0),
+        p_state: state
+      });
+    } catch (error) {
+      if (!missingRpc(error)) throw error;
+    }
+  }
+
+  await rpc('mbs_update_room', {
+    p_room_code: state.roomCode,
+    p_secret: state.roomKey,
+    p_state: state
+  });
+  return payloadFromLegacy(state);
+}
+
+export async function updateRoom(state) {
+  return commitRoom(state);
 }
 
 export function isCaptain() {
+  const session = getRoomSession();
+  if (session?.role) return session.role === 'captain';
   return (localStorage.getItem(ROLE_KEY) || 'captain') === 'captain';
 }
