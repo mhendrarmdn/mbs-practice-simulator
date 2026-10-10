@@ -27,32 +27,30 @@ import {
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
-  dashboard: '▦',
-  competition: '◆',
-  workbook: 'W',
-  strategy: 'S',
-  optimizer: 'O',
-  decisions: '⌁',
-  status: '◎',
-  analysis: '▤',
-  ratios: '%',
-  financials: '◫',
-  history: '↺',
-  matrix: '▥',
-  leaderboard: '♛',
-  scenarios: '✦',
-  model: '◈',
-  setup: '⚙',
-  economy: 'E',
-  businessStatus: 'B',
-  productImage: 'P',
-  marketShare: 'M',
-  revenue: 'R',
-  salesTrend: 'T',
-  operations: 'O',
-  costStructure: 'C',
-  competitive: 'A',
-  performanceTree: 'D'
+  dashboard: 'MD',
+  decisions: 'BD',
+  history: 'DH',
+  economy: 'EE',
+  businessStatus: 'BS',
+  productImage: 'PI',
+  marketShare: 'MS',
+  revenue: 'RS',
+  salesTrend: 'ST',
+  operations: 'PL',
+  costStructure: 'CS',
+  competitive: 'CA',
+  ratios: 'FR',
+  financials: 'FS',
+  performanceTree: 'DT',
+  leaderboard: 'LB',
+  matrix: 'DM',
+  competition: 'CC',
+  workbook: 'WL',
+  strategy: 'SL',
+  optimizer: 'RO',
+  scenarios: 'SC',
+  model: 'MT',
+  setup: 'RS'
 };
 
 function navButton(id, label, active) {
@@ -81,6 +79,14 @@ function roomPresence(state) {
     </div>`).join('') : '<div class="empty">Presence belum tersedia. Jalankan schema v0.3 untuk member list.</div>'}</div>`;
 }
 
+function roundHeaderLabel(state) {
+  if (state.mode === 'workbook') {
+    const base = `ROUND ${Math.min(Number(state.currentRound||0),5)} / 5`;
+    return state.currentRound >= 5 && state.workbookPlan ? base + ' · R6 PLAN READY' : base;
+  }
+  return `ROUND ${state.currentRound} / ${state.maxRounds}`;
+}
+
 export function shell(state, activeTab, themePreference, ui = {}) {
   const timer = Math.max(0, Number(state.timerRemaining || 0));
   const mm = String(Math.floor(timer / 60)).padStart(2, '0');
@@ -94,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.1</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.2.2</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -145,7 +151,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
             <button class="hamburger" data-action="toggle-sidebar" aria-label="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}" title="${collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}"><span></span><span></span><span></span></button>
             <div>
               <strong>${esc(state.teamName)}</strong>
-              <small>ROUND ${state.currentRound} / ${state.maxRounds}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
+              <small>${roundHeaderLabel(state)}${state.roomCode ? ` · ${esc(session.role || 'room')}` : ''}</small>
             </div>
           </div>
           <div class="top-actions">
