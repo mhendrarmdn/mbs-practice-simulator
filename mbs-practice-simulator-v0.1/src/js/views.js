@@ -8,6 +8,7 @@ import { buildRound6Review, workbookStage } from './workbookLab.js';
 import { strategyAlignment, strategyComparison } from './strategySystem.js';
 import { robustOptimize } from './robustOptimizer.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
+import { officialSyncView } from './officialSyncView.js';
 import {
   parityDashboardView,
   economicEnvironmentView,
@@ -31,6 +32,7 @@ const NAV_ICONS = {
   decisions: 'BD',
   history: 'DH',
   economy: 'EE',
+  officialSync: 'OS',
   businessStatus: 'BS',
   productImage: 'PI',
   marketShare: 'MS',
@@ -108,7 +110,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.5.0</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.6.0</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -118,6 +120,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
           ], activeTab)}
           ${navGroup('STATUS', [
             ['economy','Economic Environment'],
+            ['officialSync','Official Sync'],
             ['businessStatus','Business Status'],
             ['productImage','Product Image'],
             ['marketShare','Market Share'],
@@ -1025,6 +1028,7 @@ export function bodyForTab(state, activeTab, ui = {}) {
     case 'decisions': return decisionsView(state);
     case 'history': return parityDecisionHistoryView(state, ui.parityRound);
     case 'economy': return economicEnvironmentView(state, ui.parityRound);
+    case 'officialSync': return officialSyncView(state, ui.officialRound);
     case 'businessStatus':
     case 'status': return businessStatusView(state, ui.parityRound);
     case 'productImage': return productImageView(state, ui.parityRound);
