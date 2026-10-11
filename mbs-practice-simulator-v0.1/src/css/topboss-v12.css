@@ -2011,3 +2011,33 @@ body{
   background:#fffaf0;
 }
 .connection-source.warn strong{color:#8a6412}
+
+
+/* v1.4.5 — captain member moderation */
+.presence-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.presence-copy{
+  min-width:0;
+  flex:1;
+}
+.member-kick{
+  margin-left:auto;
+  flex:none;
+  min-width:54px;
+  padding:7px 10px;
+  border:1px solid #e0bcbc;
+  border-radius:5px;
+  background:#fff8f8;
+  color:#a33a3a;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
+.member-kick:hover{
+  border-color:#c85b5b;
+  background:#fff0f0;
+  color:#8e2424;
+}

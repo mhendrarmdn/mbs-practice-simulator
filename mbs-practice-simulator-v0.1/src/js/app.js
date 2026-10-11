@@ -11,6 +11,7 @@ import {
   getRoomSession,
   isCaptain,
   joinRoom,
+  removeRoomMember,
   patchDraft,
   randomRoomCode,
   randomRoomKey,
@@ -83,7 +84,23 @@ async function refreshRoom({ rerender = true } = {}) {
     markSync('● Online');
     return payload;
   } catch (error) {
+    const message = String(error?.message || error);
     console.warn('Remote sync failed:', error);
+
+    if (message.includes('Invalid room member session')) {
+      clearInterval(pollTimer);
+      state.roomCode = '';
+      state.roomKey = '';
+      state.roomMembers = [];
+      state.revision = 0;
+      clearRoomSession();
+      persistLocal();
+      activeTab = 'setup';
+      alert('Kamu telah dikeluarkan dari room oleh Captain.');
+      if (rerender) render(false);
+      return null;
+    }
+
     markSync('● Offline cache');
     return null;
   } finally {
@@ -574,6 +591,25 @@ function bindEvents() {
         const payload = await createRoom(state, displayName, creatorAccessKey);
         applyRoomPayload(payload, state.roomCode, state.roomKey);
         startPolling();
+        activeTab = 'setup';
+
+      } else if (action === 'remove-member') {
+        if (!captainOnly('Kick member')) return;
+
+        const button = event.currentTarget;
+        const memberId = button?.dataset?.memberId || '';
+        const memberName = button?.dataset?.memberName || 'member';
+
+        if (!memberId) throw new Error('Member target tidak valid.');
+        if (!confirm(`Keluarkan ${memberName} dari room ini?`)) return;
+
+        const payload = await removeRoomMember(state, memberId);
+        if (payload?.state) {
+          applyRoomPayload(payload);
+        } else if (Array.isArray(payload?.members)) {
+          state.roomMembers = payload.members;
+          saveLocal(state, { touch: false });
+        }
         activeTab = 'setup';
 
       } else if (action === 'join-room') {

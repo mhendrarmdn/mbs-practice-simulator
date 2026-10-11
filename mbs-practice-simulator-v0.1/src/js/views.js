@@ -982,6 +982,7 @@ export function setupView(state) {
           <hr>
           ${cardHead('TEAM PRESENCE','Room Members','◉')}
           ${roomPresence(state)}
+          ${captain ? '<div class="callout">Kick mencabut sesi member saat ini. Jika orang tersebut masih mengetahui Room Code + Room Key, ia masih dapat join ulang sebagai sesi baru.</div>' : ''}
         `}
 
         <div class="callout">Untuk fitur v0.3 penuh, jalankan schema SQL terbaru sekali di Supabase. Jika belum, aplikasi tetap mencoba legacy room mode.</div>
