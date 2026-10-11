@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ''), 'utf8');
@@ -62,6 +62,7 @@ export default async function handler(req, res) {
   const roomKey = String(body.roomKey || '').toUpperCase();
   const memberToken = String(body.memberToken || '');
   const displayName = String(body.displayName || 'Captain').trim().slice(0, 40);
+  const recoveryCode = randomBytes(18).toString('base64url');
   const state = body.state;
 
   if (!validRoomCode(roomCode) || !validRoomKey(roomKey)) {
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/mbs_create_room_v03`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/mbs_create_room_v04`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,6 +94,7 @@ export default async function handler(req, res) {
         p_room_code: roomCode,
         p_secret: roomKey,
         p_captain_token: memberToken,
+        p_captain_recovery_code: recoveryCode,
         p_display_name: displayName || 'Captain',
         p_state: state
       })
@@ -109,10 +111,13 @@ export default async function handler(req, res) {
         return json(res, 409, { error: 'Room Code collision. Coba Create Authorized Room lagi.' });
       }
       console.error('Authorized room creation failed:', code, message);
+      if (code === 'PGRST202' || String(message).includes('mbs_create_room_v04')) {
+        return json(res, 503, { error: 'Captain Recovery migration v1.5.0 belum dijalankan di Supabase.' });
+      }
       return json(res, 502, { error: 'Server gagal membuat room. Periksa Supabase migration dan server environment.' });
     }
 
-    return json(res, 200, payload || {});
+    return json(res, 200, { ...(payload || {}), captain_recovery_code: recoveryCode });
   } catch (error) {
     console.error('Room creation endpoint error:', error?.message || error);
     return json(res, 500, { error: 'Room creation service tidak tersedia.' });

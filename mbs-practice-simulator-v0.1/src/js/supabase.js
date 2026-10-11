@@ -59,6 +59,31 @@ export function clearRoomSession() {
   localStorage.removeItem(ROLE_KEY);
 }
 
+const CAPTAIN_RECOVERY_STORAGE_KEY = 'mbs_captain_recovery_v15';
+
+export function getCaptainRecovery() {
+  try {
+    return JSON.parse(localStorage.getItem(CAPTAIN_RECOVERY_STORAGE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCaptainRecovery(recovery) {
+  if (!recovery?.roomCode || !recovery?.roomKey || !recovery?.recoveryCode) return;
+  localStorage.setItem(CAPTAIN_RECOVERY_STORAGE_KEY, JSON.stringify({
+    roomCode: String(recovery.roomCode || '').toUpperCase(),
+    roomKey: String(recovery.roomKey || '').toUpperCase(),
+    recoveryCode: String(recovery.recoveryCode || ''),
+    displayName: String(recovery.displayName || 'Captain'),
+    savedAt: new Date().toISOString()
+  }));
+}
+
+export function clearCaptainRecovery() {
+  localStorage.removeItem(CAPTAIN_RECOVERY_STORAGE_KEY);
+}
+
 export async function rpc(name, params) {
   const config = getSupabaseConfig();
   if (!config.url || !config.key) {
@@ -119,6 +144,15 @@ export function randomMemberToken() {
   return value;
 }
 
+export function randomRecoveryCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  let value = '';
+  for (let i = 0; i < bytes.length; i += 1) value += chars[bytes[i] % chars.length];
+  return value;
+}
+
 function payloadFromLegacy(state, role = isCaptain() ? 'captain' : 'member') {
   return {
     state,
@@ -160,6 +194,64 @@ export async function createRoom(state, displayName = 'Captain', creatorAccessKe
     displayName: payload?.display_name || displayName || 'Captain',
     role: 'captain',
     protocol: 'v03'
+  });
+
+  if (payload?.captain_recovery_code) {
+    saveCaptainRecovery({
+      roomCode: state.roomCode,
+      roomKey: state.roomKey,
+      recoveryCode: payload.captain_recovery_code,
+      displayName: payload?.display_name || displayName || 'Captain'
+    });
+  }
+  return payload;
+}
+
+export async function provisionCaptainRecovery(state) {
+  const session = getRoomSession();
+  if (!session?.memberToken || session?.role !== 'captain') {
+    throw new Error('Captain permission required.');
+  }
+
+  const recoveryCode = randomRecoveryCode();
+  const payload = await rpc('mbs_set_captain_recovery_v04', {
+    p_room_code: state.roomCode,
+    p_secret: state.roomKey,
+    p_captain_token: session.memberToken,
+    p_recovery_code: recoveryCode
+  });
+
+  saveCaptainRecovery({
+    roomCode: state.roomCode,
+    roomKey: state.roomKey,
+    recoveryCode,
+    displayName: session.displayName || 'Captain'
+  });
+  return { ...payload, captain_recovery_code: recoveryCode };
+}
+
+export async function resumeCaptain(roomCode, roomKey, recoveryCode, displayName = 'Captain') {
+  const memberToken = randomMemberToken();
+  const payload = await rpc('mbs_resume_captain_v04', {
+    p_room_code: String(roomCode || '').toUpperCase(),
+    p_secret: String(roomKey || '').toUpperCase(),
+    p_recovery_code: String(recoveryCode || ''),
+    p_member_token: memberToken,
+    p_display_name: displayName || 'Captain'
+  });
+
+  saveRoomSession({
+    memberToken,
+    memberId: payload?.member_id || '',
+    displayName: payload?.display_name || displayName || 'Captain',
+    role: 'captain',
+    protocol: 'v03'
+  });
+  saveCaptainRecovery({
+    roomCode,
+    roomKey,
+    recoveryCode,
+    displayName: payload?.display_name || displayName || 'Captain'
   });
   return payload;
 }

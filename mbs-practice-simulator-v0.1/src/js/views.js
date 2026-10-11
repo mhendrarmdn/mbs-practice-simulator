@@ -1,5 +1,5 @@
 import { OBSERVED_ANCHORS, OPTIMIZER_RISK_PROFILES, SCENARIO_PRESETS, STRATEGY_GOALS, TRAINING_PROXY_NOTES } from './config.js';
-import { getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
+import { getCaptainRecovery, getRoomSession, getSupabaseConfig, isCaptain } from './supabase.js';
 import { previewSensitivity } from './sensitivity.js';
 import { calibrationReport, draftReadiness, roundDebrief } from './decisionIntel.js';
 import { decisionMatrices } from './decisionMatrix.js';
@@ -108,7 +108,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.6</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.5.0</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -929,6 +929,8 @@ export function setupView(state) {
   const config = getSupabaseConfig();
   const session = getRoomSession();
   const captain = isCaptain() || !state.roomCode;
+  const recovery = getCaptainRecovery();
+  const recoveryMatchesRoom = Boolean(state.roomCode && recovery.roomCode === state.roomCode && recovery.recoveryCode);
   const connectionLabel = config.source === 'deployment'
     ? 'Deployment default'
     : config.source === 'browser'
@@ -978,22 +980,38 @@ export function setupView(state) {
           <div class="card-head"><div><span>OWNER-GATED</span><h2>Create New Room</h2></div></div>
           <div class="field"><label><span>Your Display Name</span><span>captain</span></label><input id="memberName" placeholder="Mahen"></div>
           <div class="field spaced"><label><span>Creator Access Code</span><span>owner-issued</span></label><input id="roomCreatorAccessKey" type="password" autocomplete="off" placeholder="Enter creator access code"></div>
-          <div class="callout">Room creation diproteksi server-side. Publishable Supabase key tetap public, tetapi tidak lagi memiliki izin membuat room secara langsung.</div>
+          <div class="callout">Room baru mendapat Captain Recovery Code unik. Simpan kode itu untuk masuk kembali sebagai Captain setelah Leave Room atau dari device lain.</div>
           <div class="actions" style="margin-top:16px"><button class="primary" data-action="create-room">Create Authorized Room</button></div>
+
           <hr>
-          <div class="card-head"><div><span>JOIN</span><h2>Existing Room</h2></div></div>
+          <div class="card-head"><div><span>RETURNING CAPTAIN</span><h2>Resume Existing Room</h2></div></div>
+          <div class="field"><label><span>Captain Display Name</span><span>captain</span></label><input id="resumeName" value="${esc(recovery.displayName||'')}" placeholder="Mahen"></div>
+          <div class="field spaced"><label><span>Room Code</span><span>existing</span></label><input id="resumeCode" value="${esc(recovery.roomCode||'')}" placeholder="MBS-4821"></div>
+          <div class="field spaced"><label><span>Room Key</span><span>8 chars</span></label><input id="resumeKey" value="${esc(recovery.roomKey||'')}" placeholder="XXXXXXXX"></div>
+          <div class="field spaced"><label><span>Captain Recovery Code</span><span>24 chars</span></label><input id="resumeRecoveryCode" type="password" value="${esc(recovery.recoveryCode||'')}" placeholder="Captain recovery code"></div>
+          <div class="actions" style="margin-top:16px"><button class="secondary" data-action="resume-captain">Resume as Captain</button></div>
+
+          <hr>
+          <div class="card-head"><div><span>JOIN</span><h2>Existing Room as Member</h2></div></div>
           <div class="field"><label><span>Your Display Name</span><span>member</span></label><input id="joinName" placeholder="Team member"></div>
           <div class="field spaced"><label><span>Room Code</span><span>e.g. MBS-4821</span></label><input id="joinCode" placeholder="MBS-4821"></div>
           <div class="field spaced"><label><span>Room Key</span><span>8 chars</span></label><input id="joinKey" placeholder="XXXXXXXX"></div>
-          <div class="actions" style="margin-top:16px"><button class="secondary" data-action="join-room">Join Room</button></div>
+          <div class="actions" style="margin-top:16px"><button class="secondary" data-action="join-room">Join as Member</button></div>
         ` : `
+          ${captain ? `
+            <hr>
+            ${cardHead('CAPTAIN ACCESS','Room Recovery','↺')}
+            ${recoveryMatchesRoom
+              ? `<div class="captain-recovery-card"><span>Captain Recovery Code</span><strong>${esc(recovery.recoveryCode)}</strong><small>Simpan bersama Room Code + Room Key. Kode ini dapat mengambil kembali role Captain dari browser/device lain.</small><button class="secondary" data-action="copy-recovery-code">Copy Recovery Code</button></div>`
+              : `<div class="callout warn">Room ini belum memiliki recovery code tersimpan di browser ini. Untuk room lama, aktifkan recovery sebelum Leave Room.</div><div class="actions"><button class="secondary" data-action="provision-captain-recovery">Enable / Rotate Recovery Code</button></div>`}
+          ` : ''}
           <hr>
           ${cardHead('TEAM PRESENCE','Room Members','◉')}
           ${roomPresence(state)}
           ${captain ? '<div class="callout">Kick mencabut sesi member saat ini. Jika orang tersebut masih mengetahui Room Code + Room Key, ia masih dapat join ulang sebagai sesi baru.</div>' : ''}
         `}
 
-        <div class="callout">Untuk fitur v0.3 penuh, jalankan schema SQL terbaru sekali di Supabase. Jika belum, aplikasi tetap mencoba legacy room mode.</div>
+        <div class="callout">Multiplayer memakai schema dasar v0.3 serta migration v1.4.4, v1.4.5, dan v1.5.0. Jalankan migration versioned yang belum pernah diterapkan satu kali di Supabase.</div>
       </div>
     </div>`;
 }

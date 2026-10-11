@@ -7,11 +7,14 @@ import {
   clearRoomSession,
   commitRoom,
   createRoom,
+  getCaptainRecovery,
   getRoom,
   getRoomSession,
   isCaptain,
   joinRoom,
+  provisionCaptainRecovery,
   removeRoomMember,
+  resumeCaptain,
   patchDraft,
   randomRoomCode,
   randomRoomKey,
@@ -317,6 +320,36 @@ function bindEvents() {
     render(false);
   });
 
+  document.querySelectorAll('[data-competitive-metric]').forEach(button => {
+    button.addEventListener('click', () => {
+      competitiveMetric = button.dataset.competitiveMetric || 'marketShare';
+      render(false);
+    });
+  });
+
+  const setCompetitiveHover = (key, on) => {
+    if (!key) return;
+    document.querySelectorAll(`[data-company-key="${CSS.escape(key)}"]`).forEach(el => {
+      el.classList.toggle('is-hovered', on);
+    });
+  };
+
+  document.querySelectorAll('[data-company-key]').forEach(el => {
+    el.addEventListener('mouseenter', () => setCompetitiveHover(el.dataset.companyKey, true));
+    el.addEventListener('mouseleave', () => setCompetitiveHover(el.dataset.companyKey, false));
+  });
+
+  document.querySelectorAll('[data-competitor-toggle]').forEach(button => {
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      const key = button.dataset.companyKey;
+      const series = document.querySelector(`.competitive-series[data-company-key="${CSS.escape(key)}"]`);
+      if (!series) return;
+      series.classList.toggle('is-hidden');
+      button.classList.toggle('is-hidden');
+    });
+  });
+
   document.querySelector('#modeSelect')?.addEventListener('change', async event => {
     if (!captainOnly('Perubahan mode')) {
       event.target.value = state.mode;
@@ -611,6 +644,36 @@ function bindEvents() {
           saveLocal(state, { touch: false });
         }
         activeTab = 'setup';
+
+      } else if (action === 'provision-captain-recovery') {
+        if (!captainOnly('Captain recovery')) return;
+        const payload = await provisionCaptainRecovery(state);
+        alert(`Captain Recovery Code dibuat: ${payload.captain_recovery_code}\n\nSimpan kode ini bersama Room Code + Room Key.`);
+        activeTab = 'setup';
+
+      } else if (action === 'copy-recovery-code') {
+        const recovery = getCaptainRecovery();
+        if (!recovery?.recoveryCode) throw new Error('Recovery Code belum tersedia.');
+        await navigator.clipboard.writeText(recovery.recoveryCode);
+        alert('Captain Recovery Code copied.');
+
+      } else if (action === 'resume-captain') {
+        const url = document.querySelector('#supabaseUrl')?.value?.trim();
+        const key = document.querySelector('#supabaseKey')?.value?.trim();
+        const roomCode = document.querySelector('#resumeCode')?.value?.trim().toUpperCase();
+        const roomKey = document.querySelector('#resumeKey')?.value?.trim().toUpperCase();
+        const recoveryCode = document.querySelector('#resumeRecoveryCode')?.value?.trim();
+        const displayName = document.querySelector('#resumeName')?.value?.trim() || 'Captain';
+        saveSupabaseConfig(url, key);
+
+        if (!roomCode || !roomKey || !recoveryCode) {
+          throw new Error('Room Code, Room Key, dan Captain Recovery Code wajib diisi.');
+        }
+
+        const payload = await resumeCaptain(roomCode, roomKey, recoveryCode, displayName);
+        applyRoomPayload(payload, roomCode, roomKey);
+        startPolling();
+        activeTab = 'dashboard';
 
       } else if (action === 'join-room') {
         const url = document.querySelector('#supabaseUrl')?.value?.trim();
