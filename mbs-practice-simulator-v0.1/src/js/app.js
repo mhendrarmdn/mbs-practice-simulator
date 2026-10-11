@@ -617,6 +617,8 @@ function bindEvents() {
         return;
 
 
+      } else if (action === 'war-refresh') {
+        render(false);
       } else if (action === 'war-vote') {
         if(state.roomCode && !getRoomSession()?.memberId) {alert('Join the room to vote.');return;}
         const room=warRoomFor(state);
