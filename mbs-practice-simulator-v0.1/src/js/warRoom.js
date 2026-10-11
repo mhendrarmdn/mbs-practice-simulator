@@ -95,7 +95,7 @@ export function warRoomView(state){
   return `<div class="page-head"><div><div class="eyebrow">COMPETITION DECISION COCKPIT · v1.9.0</div>
     <h1>Decision War Room</h1><p class="subtitle">Compare five named candidates against the SAME starting state, official environment, and adaptive calibration. Practice estimates, never TopBoss guarantees.</p></div></div>
     <div class="callout">Round ${state.currentRound+1} · ${calibration?.samples||0} official calibration pairs · confidence ${calibration?.confidence||0}% · scenario-aware comparison. ${esc(message||'')} ${esc(shareVoteNote)}</div>
-    <div class="card"><div class="card-head"><div><span>FAIR SIDE-BY-SIDE COMPARISON</span><h2>Candidate Scoreboard</h2></div></div>
+    <div class="card"><div class="card-head"><div><span>FAIR SIDE-BY-SIDE COMPARISON</span><h2>Candidate Scoreboard</h2></div><button class="secondary" data-action="war-refresh">↻ Refresh Comparison</button></div>
     <div style="overflow-x:auto"><table class="data-table war-table"><thead><tr><th>Candidate</th><th>Revenue</th><th>Net Profit</th><th>Share</th><th>Sales</th><th>Cash</th><th>Overdraft</th><th>Unit Cost</th><th>NPV Proxy</th><th>Worst NPV</th><th>Robust Score</th><th>Demand Gap</th><th>Scenarios</th><th>Team</th></tr></thead><tbody>${data||'<tr><td colspan="14">No active round</td></tr>'}</tbody></table></div>
     <small>Robust score = 45% mean scenario NPV + 55% worst scenario NPV (practice comparison heuristic). Incomplete scenarios are flagged; treat ranking as provisional.</small></div>
     ${room.candidates.map(candidate=>`<div class="card war-candidate"><div class="card-head"><div><span>CANDIDATE · ${esc(candidate.id.toUpperCase())}</span><h2>${esc(candidate.name)}</h2></div></div>
