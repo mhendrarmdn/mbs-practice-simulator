@@ -72,10 +72,18 @@ function statsList(rows) {
 function roomPresence(state) {
   if (!state.roomCode) return '';
   const members = state.roomMembers || [];
+  const captain = isCaptain();
+
   return `<div class="presence-list">${members.length ? members.map(member => `
     <div class="presence-row">
       <span class="presence-dot ${member.online ? 'online' : ''}"></span>
-      <div><strong>${esc(member.displayName || 'Member')}</strong><small>${member.role === 'captain' ? 'Captain' : 'Member'} · ${member.online ? 'online' : 'away'}</small></div>
+      <div class="presence-copy">
+        <strong>${esc(member.displayName || 'Member')}</strong>
+        <small>${member.role === 'captain' ? 'Captain' : 'Member'} · ${member.online ? 'online' : 'away'}</small>
+      </div>
+      ${captain && member.role !== 'captain'
+        ? `<button class="member-kick" data-action="remove-member" data-member-id="${esc(member.id || '')}" data-member-name="${esc(member.displayName || 'Member')}" title="Keluarkan member dari room">Kick</button>`
+        : ''}
     </div>`).join('') : '<div class="empty">Presence belum tersedia. Jalankan schema v0.3 untuk member list.</div>'}</div>`;
 }
 
@@ -100,7 +108,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.4</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.6</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
