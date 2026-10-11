@@ -128,34 +128,40 @@ function payloadFromLegacy(state, role = isCaptain() ? 'captain' : 'member') {
   };
 }
 
-export async function createRoom(state, displayName = 'Captain') {
+export async function createRoom(state, displayName = 'Captain', creatorAccessKey = '') {
   const memberToken = randomMemberToken();
-  try {
-    const payload = await rpc('mbs_create_room_v03', {
-      p_room_code: state.roomCode,
-      p_secret: state.roomKey,
-      p_captain_token: memberToken,
-      p_display_name: displayName || 'Captain',
-      p_state: state
-    });
-    saveRoomSession({
+  const response = await fetch('/api/create-room', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      creatorAccessKey,
+      roomCode: state.roomCode,
+      roomKey: state.roomKey,
       memberToken,
-      memberId: payload?.member_id || '',
-      displayName: payload?.display_name || displayName || 'Captain',
-      role: 'captain',
-      protocol: 'v03'
-    });
-    return payload;
-  } catch (error) {
-    if (!missingRpc(error)) throw error;
-    await rpc('mbs_create_room', {
-      p_room_code: state.roomCode,
-      p_secret: state.roomKey,
-      p_state: state
-    });
-    saveRoomSession({ memberToken, displayName, role: 'captain', protocol: 'legacy' });
-    return payloadFromLegacy(state, 'captain');
+      displayName: displayName || 'Captain',
+      state
+    })
+  });
+
+  const text = await response.text();
+  let payload = null;
+  try { payload = text ? JSON.parse(text) : null; } catch {}
+
+  if (!response.ok) {
+    const message = payload?.error || text || `Create room failed (HTTP ${response.status})`;
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
+
+  saveRoomSession({
+    memberToken,
+    memberId: payload?.member_id || '',
+    displayName: payload?.display_name || displayName || 'Captain',
+    role: 'captain',
+    protocol: 'v03'
+  });
+  return payload;
 }
 
 export async function joinRoom(roomCode, roomKey, displayName = 'Member') {

@@ -561,12 +561,17 @@ function bindEvents() {
         const url = document.querySelector('#supabaseUrl')?.value?.trim();
         const key = document.querySelector('#supabaseKey')?.value?.trim();
         const displayName = document.querySelector('#memberName')?.value?.trim() || 'Captain';
+        const creatorAccessKey = document.querySelector('#roomCreatorAccessKey')?.value || '';
         saveSupabaseConfig(url, key);
+
+        if (!creatorAccessKey.trim()) {
+          throw new Error('Creator Access Code wajib diisi. Hanya creator yang diberi akses oleh owner yang dapat membuat online room.');
+        }
 
         state.roomCode = randomRoomCode();
         state.roomKey = randomRoomKey();
         state.revision = 0;
-        const payload = await createRoom(state, displayName);
+        const payload = await createRoom(state, displayName, creatorAccessKey);
         applyRoomPayload(payload, state.roomCode, state.roomKey);
         startPolling();
         activeTab = 'setup';

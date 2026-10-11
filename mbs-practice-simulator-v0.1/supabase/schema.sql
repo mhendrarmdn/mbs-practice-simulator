@@ -374,11 +374,14 @@ begin
 end;
 $$;
 
-grant execute on function public.mbs_create_room_v03(text,text,text,text,jsonb) to anon, authenticated;
+revoke execute on function public.mbs_create_room_v03(text,text,text,text,jsonb) from PUBLIC, anon, authenticated;
+grant execute on function public.mbs_create_room_v03(text,text,text,text,jsonb) to service_role;
 grant execute on function public.mbs_join_room_v03(text,text,text,text) to anon, authenticated;
 grant execute on function public.mbs_get_room_v03(text,text,text) to anon, authenticated;
 grant execute on function public.mbs_patch_draft_v03(text,text,text,text,jsonb) to anon, authenticated;
 grant execute on function public.mbs_commit_state_v03(text,text,text,bigint,jsonb) to anon, authenticated;
-grant execute on function public.mbs_create_room(text,text,jsonb) to anon, authenticated;
+revoke execute on function public.mbs_create_room(text,text,jsonb) from PUBLIC, anon, authenticated;
+grant execute on function public.mbs_create_room(text,text,jsonb) to service_role;
 grant execute on function public.mbs_get_room(text,text) to anon, authenticated;
-grant execute on function public.mbs_update_room(text,text,jsonb) to anon, authenticated;
+revoke execute on function public.mbs_update_room(text,text,jsonb) from PUBLIC, anon, authenticated;
+grant execute on function public.mbs_update_room(text,text,jsonb) to service_role;
