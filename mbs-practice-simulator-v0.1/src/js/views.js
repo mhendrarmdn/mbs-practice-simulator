@@ -100,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.3</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.4</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -967,8 +967,11 @@ export function setupView(state) {
 
         ${!state.roomCode ? `
           <hr>
+          <div class="card-head"><div><span>OWNER-GATED</span><h2>Create New Room</h2></div></div>
           <div class="field"><label><span>Your Display Name</span><span>captain</span></label><input id="memberName" placeholder="Mahen"></div>
-          <div class="actions" style="margin-top:16px"><button class="primary" data-action="create-room">Create Online Room</button></div>
+          <div class="field spaced"><label><span>Creator Access Code</span><span>owner-issued</span></label><input id="roomCreatorAccessKey" type="password" autocomplete="off" placeholder="Enter creator access code"></div>
+          <div class="callout">Room creation diproteksi server-side. Publishable Supabase key tetap public, tetapi tidak lagi memiliki izin membuat room secara langsung.</div>
+          <div class="actions" style="margin-top:16px"><button class="primary" data-action="create-room">Create Authorized Room</button></div>
           <hr>
           <div class="card-head"><div><span>JOIN</span><h2>Existing Room</h2></div></div>
           <div class="field"><label><span>Your Display Name</span><span>member</span></label><input id="joinName" placeholder="Team member"></div>
