@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.4.6 — Kick Button Render Hotfix
+
+### Fixed
+- Restores the Captain-only Kick button in Room & Setup.
+- Fixes the stale sidebar version label that still showed v1.4.4 after the v1.4.5 deployment.
+- Keeps the existing v1.4.5 database removal RPC and client session-revocation logic unchanged.
+
+### Cause
+The previous v1.4.5 merge included the backend removal flow and explanatory callout, but the final `views.js` blob was built from the pre-v1.4.5 base and therefore did not include the updated Room Members row renderer.
+
+### Database
+- No new migration for v1.4.6.
+- `supabase/add_member_removal_v145.sql` is still required once.
+
+
 ## v1.4.5 — Captain Member Kick
 
 ### Room moderation
