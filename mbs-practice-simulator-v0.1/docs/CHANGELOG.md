@@ -1,53 +1,42 @@
 # Changelog
 
-## v1.4.4 — Room Creation Access Control
+## v1.4.5 — Captain Member Kick
 
-### Security model
-- Room creation is no longer performed directly from the browser through the public Supabase key.
-- New room creation goes through a Vercel server function at `/api/create-room`.
-- Creating a room requires an owner-issued Creator Access Code.
-- The Creator Access Code is validated server-side against `ROOM_CREATOR_ACCESS_KEY`.
-- Supabase room creation is executed server-side with `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY`.
-- Service-role credentials never use the `VITE_` prefix and are never bundled into the browser.
+### Room moderation
+- Captain can now remove any non-captain member from the current room directly from Room & Setup.
+- A Kick button appears only for the Captain and only on member rows.
+- The database validates the Captain token before removing the target member.
+- Captain cannot remove the Captain session.
 
-### Supabase permissions
-- Anonymous/authenticated clients lose EXECUTE permission on:
-  - `mbs_create_room_v03`
-  - `mbs_create_room`
-  - legacy `mbs_update_room`
-- `service_role` retains creation and legacy-update execution.
-- Public clients keep token-aware v0.3 join/get/draft/commit RPC access.
+### Revoked session behavior
+- Removing a member deletes that member's active room-session row.
+- On the removed member's next sync cycle, the app detects the invalid member session, clears the room session locally, returns the user to Room & Setup, and explains that the Captain removed them.
+- Other room members remain connected.
 
-### Captain / member integrity
-- Revoking legacy `mbs_update_room` closes a bypass where anyone holding the shared Room Key could call the old full-state mutation RPC directly.
-- Captain authority continues through `mbs_commit_state_v03`.
-- Members can continue editing the shared draft through `mbs_patch_draft_v03`.
-
-### Vercel configuration required
-Add server-only environment variables:
-- `ROOM_CREATOR_ACCESS_KEY` — strong owner-created value, minimum 24 characters.
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service-role/server secret key.
-
-Do **not** prefix either variable with `VITE_`.
-
-Existing public deployment variables remain:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY`
+### Rejoin limitation
+- Kick revokes the current session; it is not a permanent ban.
+- A removed person who still knows the Room Code + Room Key can join again as a new session.
+- Permanent bans / invite rotation are intentionally not simulated by display name because that would provide weak security.
 
 ### Database migration required
 Run once:
-`supabase/restrict_room_creation_v144.sql`
+`supabase/add_member_removal_v145.sql`
+
+This adds:
+`mbs_remove_member_v03(text,text,text,uuid)`
+
+The RPC is callable from the public client, but it only succeeds when the supplied room member token belongs to the room Captain.
 
 ### Database/data safety
+- No room or game-state deletion.
 - No table rebuild.
-- No room deletion.
-- Existing rooms continue to work.
-- Migration changes function execution permissions only.
+- Existing rooms remain valid.
+- Only the selected member-session row is removed.
+
+## v1.4.4 — Room Creation Access Control
+
+Server-side owner-gated room creation and public create-RPC lockdown.
 
 ## v1.4.3 — Portable Supabase Multiplayer Config
 
-Deployment-level public Supabase configuration for Incognito / second-device use.
-
-## v1.4.2 — Calibration Runtime Consistency Hotfix
-
-Restored Phase-1 calibration constants/imports and cache consistency.
+Deployment-level public Supabase configuration for Incognito and second-device use.

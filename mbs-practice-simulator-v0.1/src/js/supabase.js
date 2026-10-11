@@ -258,6 +258,21 @@ export async function commitRoom(state) {
   return payloadFromLegacy(state);
 }
 
+export async function removeRoomMember(state, memberId) {
+  const session = getRoomSession();
+  if (!session?.memberToken || session?.role !== 'captain') {
+    throw new Error('Captain permission required.');
+  }
+  if (!memberId) throw new Error('Member target tidak valid.');
+
+  return rpc('mbs_remove_member_v03', {
+    p_room_code: state.roomCode,
+    p_secret: state.roomKey,
+    p_captain_token: session.memberToken,
+    p_member_id: memberId
+  });
+}
+
 export async function updateRoom(state) {
   return commitRoom(state);
 }
