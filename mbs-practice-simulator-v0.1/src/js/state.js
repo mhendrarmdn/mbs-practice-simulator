@@ -163,7 +163,7 @@ function baselineField(team = 'MARKOWITZ') {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '1.4.0',
+    version: '1.4.2',
     baselineProfile: 'equal-share-16-r0-v13',
     logicCalibrationProfile: 'phase1-r1-v14',
     roomCode: '',
@@ -217,7 +217,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '1.4.0';
+  state.version = '1.4.2';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
