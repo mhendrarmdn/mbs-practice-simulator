@@ -11,6 +11,54 @@ const STRESS_PRESETS = [
   ['equipmentDisruption', 'Equipment Disruption']
 ];
 
+let stressCacheKey = '';
+let stressCacheValue = null;
+
+function analysisSignature(state, suffix = '') {
+  const companies = (state.companies || []).map(company => [
+    company.id,
+    company.price,
+    company.quality,
+    company.image,
+    company.potentialDemand,
+    company.sales,
+    company.capacity,
+    company.rawMaterial,
+    company.finishedGoods,
+    company.unitCost,
+    company.netProfit,
+    company.cash,
+    company.overdraft,
+    company.npv
+  ]);
+  return JSON.stringify([
+    state.currentRound,
+    state.maxRounds,
+    state.mode,
+    state.logicCalibrationProfile,
+    state.strategyGoal,
+    state.draft,
+    companies,
+    suffix
+  ]);
+}
+
+function scenarioClone(state, scenarioKey) {
+  const clone = deepClone(state);
+  clone.mode = 'sandbox';
+  clone.scenarioPreset = scenarioKey;
+  clone.surpriseMode = false;
+  clone.roomCode = '';
+  clone.roomKey = '';
+  clone.roomMembers = [];
+  clone.decisionLocked = false;
+  clone.lockReason = '';
+  clone.roundDeadlineAt = null;
+  // Analysis pages should use the calibrated coefficient set, but never the controlled
+  // Workbook-R1 replay environment. Setting sandbox mode above prevents that demand replay.
+  return clone;
+}
+
 function cumulative(history, selector) {
   return (history || []).filter(item => item.round > 0).reduce((sum, item) => sum + Number(selector(item) || 0), 0);
 }
@@ -42,32 +90,62 @@ export function competitionSnapshot(state) {
 }
 
 export function stressTestDraft(state) {
-  if (state.currentRound >= state.maxRounds) return { available: false, rows: [] };
+  if (state.currentRound >= state.maxRounds) {
+    return { available: false, rows: [], errors: [], reason: 'No remaining result round to stress-test.' };
+  }
+
+  const cacheKey = analysisSignature(state, 'competition-stress-v141');
+  if (cacheKey === stressCacheKey && stressCacheValue) return stressCacheValue;
+
   const currentUser = userCompany(state);
-  const rows = STRESS_PRESETS.map(([key, label]) => {
-    const clone = deepClone(state);
-    clone.mode = 'sandbox';
-    clone.scenarioPreset = key;
-    clone.surpriseMode = false;
-    clone.roomCode = '';
-    clone.roomKey = '';
-    clone.roomMembers = [];
-    simulateRound(clone);
-    const user = userCompany(clone);
-    return {
-      key,
-      label,
-      netProfit: user.netProfit,
-      cash: user.cash,
-      overdraft: user.overdraft,
-      marketShare: user.marketShare,
-      npv: user.npv,
-      npvDelta: user.npv - currentUser.npv,
-      unitCost: user.unitCost,
-      sales: user.sales
-    };
-  });
-  return { available: true, rows };
+  const rows = [];
+  const errors = [];
+
+  for (const [key, label] of STRESS_PRESETS) {
+    try {
+      const clone = scenarioClone(state, key);
+      simulateRound(clone);
+      const user = userCompany(clone);
+      if (!user || !Number.isFinite(Number(user.npv))) {
+        throw new Error('Scenario produced an invalid user result.');
+      }
+      rows.push({
+        key,
+        label,
+        netProfit: Number(user.netProfit || 0),
+        cash: Number(user.cash || 0),
+        overdraft: Number(user.overdraft || 0),
+        marketShare: Number(user.marketShare || 0),
+        npv: Number(user.npv || 0),
+        npvDelta: Number(user.npv || 0) - Number(currentUser?.npv || 0),
+        unitCost: Number(user.unitCost || 0),
+        sales: Number(user.sales || 0)
+      });
+    } catch (error) {
+      console.error('Competition stress scenario failed:', key, error);
+      errors.push({ key, label, message: error?.message || String(error) });
+    }
+  }
+
+  const result = rows.length
+    ? {
+        available: true,
+        rows,
+        errors,
+        partial: errors.length > 0,
+        reason: errors.length ? `${errors.length} scenario gagal dihitung; scenario lain tetap ditampilkan.` : ''
+      }
+    : {
+        available: false,
+        rows: [],
+        errors,
+        partial: false,
+        reason: errors[0]?.message || 'Scenario stress test gagal dihitung.'
+      };
+
+  stressCacheKey = cacheKey;
+  stressCacheValue = result;
+  return result;
 }
 
 export function strategyBrief(state) {
@@ -115,7 +193,7 @@ export function presentationBrief(state) {
     analysis: [
       `Practice NPV rank: #${snap.rank}/${snap.competitors}; gap to leader: ${Math.round(snap.npvGapToLeader).toLocaleString('en-US')}.`,
       `Revenue vs R0: ${(pctMove(latest.revenue, first.revenue)*100).toFixed(1)}%; market share change: ${((latest.marketShare-first.marketShare)*100).toFixed(2)} pp.`,
-      `Current margin ${(user.profitMargin*100).toFixed(2)}%, ROE ${(user.roe*100).toFixed(2)}%, current ratio ${user.currentRatio.toFixed(2)}x.`,
+      `Current margin ${(Number(user.profitMargin||0)*100).toFixed(2)}%, ROE ${(Number(user.roe||0)*100).toFixed(2)}%, current ratio ${Number(user.currentRatio||0).toFixed(2)}x.`,
       debrief.headline
     ],
     evaluation: [
@@ -146,9 +224,9 @@ export function buildCompetitionBriefMarkdown(state) {
     `Round: ${state.currentRound}/${state.maxRounds}`,
     `Practice NPV: ${Math.round(user.npv).toLocaleString('en-US')} (Rank #${snap.rank}/${snap.competitors})`,
     `Net Profit: ${Math.round(user.netProfit).toLocaleString('en-US')}`,
-    `ROE: ${(user.roe*100).toFixed(2)}%`,
-    `Profit Margin: ${(user.profitMargin*100).toFixed(2)}%`,
-    `Current Ratio: ${user.currentRatio.toFixed(2)}x`,
+    `ROE: ${(Number(user.roe||0)*100).toFixed(2)}%`,
+    `Profit Margin: ${(Number(user.profitMargin||0)*100).toFixed(2)}%`,
+    `Current Ratio: ${Number(user.currentRatio||0).toFixed(2)}x`,
     `Market Share: ${(user.marketShare*100).toFixed(2)}%`,
     '',
     '## Key Issues',

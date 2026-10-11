@@ -12,6 +12,53 @@ const SCENARIOS = [
   ['equipmentDisruption', 'Equipment Disruption']
 ];
 
+let optimizerCacheKey = '';
+let optimizerCacheValue = null;
+
+function analysisSignature(state, riskProfile) {
+  const companies = (state.companies || []).map(company => [
+    company.id,
+    company.price,
+    company.quality,
+    company.image,
+    company.potentialDemand,
+    company.sales,
+    company.capacity,
+    company.rawMaterial,
+    company.finishedGoods,
+    company.unitCost,
+    company.netProfit,
+    company.cash,
+    company.overdraft,
+    company.npv
+  ]);
+  return JSON.stringify([
+    state.currentRound,
+    state.maxRounds,
+    state.mode,
+    state.logicCalibrationProfile,
+    state.strategyGoal,
+    riskProfile,
+    state.draft,
+    companies
+  ]);
+}
+
+function scenarioClone(state, scenarioKey, decision) {
+  const clone = deepClone(state);
+  clone.mode = 'sandbox';
+  clone.scenarioPreset = scenarioKey;
+  clone.surpriseMode = false;
+  clone.roomCode = '';
+  clone.roomKey = '';
+  clone.roomMembers = [];
+  clone.decisionLocked = false;
+  clone.lockReason = '';
+  clone.roundDeadlineAt = null;
+  clone.draft = deepClone(decision);
+  return clone;
+}
+
 const roundStep = (value, step) => Math.max(0, Math.round(Number(value || 0) / step) * step);
 const priceStep = value => Math.max(3, Math.round(Number(value || 0) * 20) / 20);
 
@@ -116,12 +163,18 @@ function candidateSet(state) {
   ];
 
   const seen = new Set();
-  return recipes.filter(([, decision]) => {
+  const unique = recipes.filter(([, decision]) => {
     const key = JSON.stringify(decision);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).map(([name, decision], index) => ({ id: index, name, decision }));
+  });
+
+  // With the v1.3+ 16-company field, evaluating every micro-variant synchronously
+  // makes the first Optimizer render unnecessarily heavy. Keep the most decision-
+  // distinct candidates while preserving the core strategic alternatives.
+  const limit = (state.companies || []).length >= 16 ? 12 : unique.length;
+  return unique.slice(0, limit).map(([name, decision], index) => ({ id: index, name, decision }));
 }
 
 function normalize(value, min, max) {
@@ -144,60 +197,98 @@ export function robustOptimize(state, riskProfile = state.optimizerRisk || 'bala
         ? 'Workbook R6 is planning-only, so the optimizer will not fabricate an R6 simulated result.'
         : 'No remaining result round to optimize.',
       candidates: [],
-      scenarios: SCENARIOS
+      scenarios: SCENARIOS,
+      errors: []
     };
   }
 
   const profile = OPTIMIZER_RISK_PROFILES[riskProfile] ? riskProfile : 'balanced';
+  const cacheKey = analysisSignature(state, profile);
+  if (cacheKey === optimizerCacheKey && optimizerCacheValue) return optimizerCacheValue;
+
   const candidates = candidateSet(state);
   const baseUser = userCompany(state);
   const allOutcomes = [];
+  const errors = [];
 
   for (const candidate of candidates) {
-    candidate.outcomes = SCENARIOS.map(([scenarioKey, scenarioLabel]) => {
-      const clone = deepClone(state);
-      clone.mode = 'sandbox';
-      clone.scenarioPreset = scenarioKey;
-      clone.surpriseMode = false;
-      clone.roomCode = '';
-      clone.roomKey = '';
-      clone.roomMembers = [];
-      clone.draft = deepClone(candidate.decision);
-      simulateRound(clone);
-      const user = userCompany(clone);
-      const alignment = strategyAlignment(clone, state.strategyGoal || 'balancedValue');
-      const outcome = {
-        scenarioKey, scenarioLabel,
-        npv: user.npv,
-        npvDelta: user.npv - baseUser.npv,
-        netProfit: user.netProfit,
-        cash: user.cash,
-        overdraft: user.overdraft,
-        marketShare: user.marketShare,
-        unitCost: user.unitCost,
-        alignment: alignment.score
-      };
-      allOutcomes.push(outcome);
-      return outcome;
-    });
+    const outcomes = [];
+
+    for (const [scenarioKey, scenarioLabel] of SCENARIOS) {
+      try {
+        const clone = scenarioClone(state, scenarioKey, candidate.decision);
+        simulateRound(clone);
+        const user = userCompany(clone);
+        if (!user || !Number.isFinite(Number(user.npv))) {
+          throw new Error('Scenario produced an invalid user result.');
+        }
+
+        let alignmentScore = 50;
+        try {
+          const alignment = strategyAlignment(clone, state.strategyGoal || 'balancedValue');
+          alignmentScore = Number.isFinite(Number(alignment?.score)) ? Number(alignment.score) : 50;
+        } catch (alignmentError) {
+          console.warn('Optimizer alignment fallback:', alignmentError);
+        }
+
+        const outcome = {
+          scenarioKey,
+          scenarioLabel,
+          npv: Number(user.npv || 0),
+          npvDelta: Number(user.npv || 0) - Number(baseUser?.npv || 0),
+          netProfit: Number(user.netProfit || 0),
+          cash: Number(user.cash || 0),
+          overdraft: Number(user.overdraft || 0),
+          marketShare: Number(user.marketShare || 0),
+          unitCost: Number(user.unitCost || 0),
+          alignment: alignmentScore
+        };
+        outcomes.push(outcome);
+        allOutcomes.push(outcome);
+      } catch (error) {
+        console.error('Optimizer scenario failed:', candidate.name, scenarioKey, error);
+        errors.push({
+          candidate: candidate.name,
+          scenarioKey,
+          scenarioLabel,
+          message: error?.message || String(error)
+        });
+      }
+    }
+
+    candidate.outcomes = outcomes;
   }
 
-  const npvValues = allOutcomes.map(x=>x.npvDelta);
-  const profitValues = allOutcomes.map(x=>x.netProfit);
-  const shareValues = allOutcomes.map(x=>x.marketShare);
+  const validCandidates = candidates.filter(candidate => candidate.outcomes.length > 0);
+  if (!allOutcomes.length || !validCandidates.length) {
+    const result = {
+      available: false,
+      reason: errors[0]?.message || 'Optimizer scenario engine gagal menghasilkan outcome yang valid.',
+      candidates: [],
+      scenarios: SCENARIOS,
+      errors
+    };
+    optimizerCacheKey = cacheKey;
+    optimizerCacheValue = result;
+    return result;
+  }
+
+  const npvValues = allOutcomes.map(x=>x.npvDelta).filter(Number.isFinite);
+  const profitValues = allOutcomes.map(x=>x.netProfit).filter(Number.isFinite);
+  const shareValues = allOutcomes.map(x=>x.marketShare).filter(Number.isFinite);
   const npvMin = Math.min(...npvValues), npvMax = Math.max(...npvValues);
   const profitMin = Math.min(...profitValues), profitMax = Math.max(...profitValues);
   const shareMin = Math.min(...shareValues), shareMax = Math.max(...shareValues);
 
-  for (const candidate of candidates) {
+  for (const candidate of validCandidates) {
     const os = candidate.outcomes;
-    const avg = fn => os.reduce((s,x)=>s+fn(x),0) / os.length;
+    const avg = fn => os.reduce((s,x)=>s+Number(fn(x)||0),0) / Math.max(os.length,1);
     const avgAlignment = avg(x=>x.alignment);
     const avgNpvNorm = avg(x=>normalize(x.npvDelta,npvMin,npvMax));
     const avgProfitNorm = avg(x=>normalize(x.netProfit,profitMin,profitMax));
     const avgShareNorm = avg(x=>normalize(x.marketShare,shareMin,shareMax));
     const worstNpvNorm = Math.min(...os.map(x=>normalize(x.npvDelta,npvMin,npvMax)));
-    const overdraftRate = os.filter(x=>x.overdraft>0).length / os.length;
+    const overdraftRate = os.filter(x=>x.overdraft>0).length / Math.max(os.length,1);
     const liquiditySafety = clamp(100 - overdraftRate*70 - avg(x=>Math.min(x.overdraft/20000,30)),0,100);
     const volatility = stddev(os.map(x=>normalize(x.npvDelta,npvMin,npvMax)));
     const avgNpvDelta = avg(x=>x.npvDelta);
@@ -213,7 +304,7 @@ export function robustOptimize(state, riskProfile = state.optimizerRisk || 'bala
     }
 
     Object.assign(candidate, {
-      robustScore: clamp(Math.round(robustScore),0,100),
+      robustScore: clamp(Math.round(Number.isFinite(robustScore) ? robustScore : 0),0,100),
       avgAlignment: Math.round(avgAlignment),
       avgNpvDelta,
       worstNpvDelta,
@@ -224,21 +315,27 @@ export function robustOptimize(state, riskProfile = state.optimizerRisk || 'bala
     });
   }
 
-  candidates.sort((a,b)=>b.robustScore-a.robustScore);
-  const current = candidates.find(x=>x.name==='Current Draft') || candidates[0];
-  const best = candidates[0];
+  validCandidates.sort((a,b)=>b.robustScore-a.robustScore);
+  const current = validCandidates.find(x=>x.name==='Current Draft') || validCandidates[0];
+  const best = validCandidates[0];
 
-  return {
+  const result = {
     available: true,
     riskProfile: profile,
     profile: OPTIMIZER_RISK_PROFILES[profile],
     scenarios: SCENARIOS,
-    candidates,
+    candidates: validCandidates,
     best,
     current,
     improvement: best.robustScore - current.robustScore,
+    partial: errors.length > 0,
+    errors,
     disclaimer: 'Robust Optimizer ranks candidate drafts inside the independent training model. It is not an official TopBoss optimizer and cannot guarantee actual competition results.'
   };
+
+  optimizerCacheKey = cacheKey;
+  optimizerCacheValue = result;
+  return result;
 }
 
 export function buildOptimizerMarkdown(state, riskProfile = state.optimizerRisk || 'balanced') {
