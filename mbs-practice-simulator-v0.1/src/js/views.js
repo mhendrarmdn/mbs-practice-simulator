@@ -304,7 +304,8 @@ export function competitionView(state) {
             <td class="${row.npvDelta>=0?'good':'bad'}">${row.npvDelta>=0?'+':''}${money(row.npvDelta)}</td>
           </tr>`).join('')}</tbody></table></div>
           <div class="callout">Stress test menjalankan draft yang sama pada lima macro presets di salinan state terpisah. Ini adalah training-model scenario analysis, bukan forecast resmi.</div>
-        ` : '<div class="empty">Game sudah mencapai ronde maksimum; stress test next-round tidak tersedia.</div>'}
+          ${stress.partial ? `<div class="callout warn">${esc(stress.reason || 'Sebagian scenario gagal dihitung.')}</div>` : ''}
+        ` : `<div class="empty">${esc(stress.reason || 'Stress test next-round tidak tersedia.')}</div>`}
       </div>
 
       <div class="side-stack">
@@ -553,6 +554,7 @@ export function optimizerView(state) {
       <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Alignment</th><th>Profit</th><th>Cash</th><th>Overdraft</th><th>Share</th><th>Unit Cost</th><th>NPV Δ</th></tr></thead>
       <tbody>${best.outcomes.map(o=>`<tr><td>${esc(o.scenarioLabel)}</td><td>${o.alignment}</td><td class="${o.netProfit>=0?'good':'bad'}">${money(o.netProfit)}</td><td>${money(o.cash)}</td><td class="${o.overdraft>0?'bad':''}">${money(o.overdraft)}</td><td>${pct(o.marketShare)}</td><td>${money(o.unitCost)}</td><td class="${o.npvDelta>=0?'good':'bad'}">${money(o.npvDelta)}</td></tr>`).join('')}</tbody></table></div>
       <div class="callout">${esc(result.disclaimer)}</div>
+      ${result.partial ? `<div class="callout warn">${esc((result.errors?.length || 0) + ' scenario evaluation gagal; ranking dihitung dari outcome valid yang tersisa.')}</div>` : ''}
     </section>
   `;
 }

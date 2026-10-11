@@ -191,7 +191,14 @@ function render(restartTimer = true) {
   const sidebarScrollTop = root.querySelector('.sidebar')?.scrollTop ?? 0;
 
   root.innerHTML = shell(state, activeTab, getThemePreference(), { sidebarCollapsed });
-  document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric });
+  try {
+    document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric });
+  } catch (error) {
+    console.error('View render failed:', activeTab, error);
+    const message = String(error?.message || error || 'Unknown render error');
+    const safeMessage = message.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    document.querySelector('#content').innerHTML = '<div class="page-head"><div><div class="eyebrow">RECOVERY MODE</div><h1>Page could not be rendered</h1><p class="subtitle">The rest of the simulator is still available. This page failed safely instead of breaking navigation.</p></div></div><div class="card"><div class="card-head"><div><span>RUNTIME ERROR</span><h2>' + activeTab + '</h2></div></div><div class="callout warn">' + safeMessage + '</div><div class="callout">Try another menu or refresh. If this persists, the error text above identifies the failing analysis module.</div></div>';
+  }
 
   const nav = root.querySelector('.nav');
   const sidebar = root.querySelector('.sidebar');
