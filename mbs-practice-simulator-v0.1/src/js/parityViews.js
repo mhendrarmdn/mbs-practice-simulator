@@ -478,7 +478,7 @@ export function revenueStatusView(state, requestedRound) {
     ];
   });
   const trend = rounds.length < 2
-    ? panel('Revenue / Profit Snapshot',`<div class="tb-single-finance-grid"><div><span>Revenue R${round}</span><strong>${money(current.revenue)}</strong></div><div><span>Net Profit R${round}</span><strong class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</strong></div></div>`)
+    ? panel('Revenue / Profit Snapshot',`<div class="tb-single-finance-grid"><div><span>Revenue R${round}</span><strong>${money(current.revenue)}</strong></div><div><span>Net Profit R${round}</span><strong class="${current.netProfit>=0?'good':'bad'}">${money(current.netProfit)}</strong></div></div><div class="callout">Trend line muncul setelah Round 1 menghasilkan titik kedua. R0 sengaja ditampilkan sebagai snapshot agar satu titik tidak terlihat seperti tren.</div>`)
     : `<div class="tb-two-col">${panel('Revenue Trend',lineChart([{name:'Revenue',values:rounds.map(r=>snapshotFor(company,r).revenue||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:1000000,axisFormat:compactMoneyAxis,hideLegend:true}))}${panel('Net Profit Trend',lineChart([{name:'Net Profit',values:rounds.map(r=>snapshotFor(company,r).netProfit||0),highlight:true}],rounds,v=>money(v),{pointLabels:true,tickStep:250000,axisFormat:compactMoneyAxis,hideLegend:true,zeroLine:true,negativeArea:true}))}</div>`;
   const previousRound=rounds.filter(r=>r<round).at(-1);
   const previous=Number.isFinite(previousRound)?snapshotFor(company,previousRound):null;
@@ -499,11 +499,11 @@ export function salesTrendView(state, requestedRound) {
     return [{text:'R'+r},{html:num(s.potentialDemand)},{html:num(s.sales)},{html:num(s.production)},{html:pct(s.marketShare)}];
   });
   const visual = rounds.length < 2
-    ? panel('R0 Operating Snapshot',barChart([
+    ? panel('R0 Operating Snapshot',`${barChart([
         {label:'Potential demand',value:current.potentialDemand||0},
         {label:'Sales',value:current.sales||0},
         {label:'Production',value:current.production||0}
-      ],v=>num(v)))
+      ],v=>num(v))}<div class="callout">Trend line muncul mulai Round 1. Pada R0, simulator menampilkan grouped snapshot karena baru ada satu periode.</div>`)
     : panel('Demand / Sales / Production',lineChart([
         {name:'Potential demand',values:rounds.map(r=>snapshotFor(c,r).potentialDemand||0)},
         {name:'Sales',values:rounds.map(r=>snapshotFor(c,r).sales||0),highlight:true},

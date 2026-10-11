@@ -1,15 +1,24 @@
 import { aiDecision } from './ai.js';
 import {
+  ATTRACTIVENESS_IMAGE_WEIGHT,
+  ATTRACTIVENESS_MARKETING_WEIGHT,
+  ATTRACTIVENESS_PRICE_WEIGHT,
+  ATTRACTIVENESS_QUALITY_WEIGHT,
+  ATTRACTIVENESS_RD_WEIGHT,
   BASE_MARKET_SIZE,
   CAPACITY_AGING_RATE,
   CAPACITY_COST_PER_UNIT,
+  DIRECT_UNIT_COST_BASE,
   DISCOUNT_RATE,
+  IMAGE_MARKETING_RESPONSE,
   MAINTENANCE_REFERENCE,
   MATERIAL_PER_UNIT,
   MATERIAL_PRICE,
   OVERTIME_LIMIT,
+  QUALITY_RD_RESPONSE,
   SCENARIO_PRESETS,
-  TARGET_CONVERSION_FACTOR
+  TARGET_CONVERSION_FACTOR,
+  WORKBOOK_R1_DEMAND_FACTOR
 } from './config.js';
 import { snapshot, userCompany } from './state.js';
 import { clamp, rngFrom } from './utils.js';
@@ -28,6 +37,25 @@ export function normalizeDecision(decision) {
 }
 
 export function economyForRound(state, round) {
+  // Controlled replay environment only for the observed Workbook R1 calibration pair.
+  if (
+    state.logicCalibrationProfile === 'phase1-r1-v14' &&
+    state.mode === 'workbook' &&
+    round === 1
+  ) {
+    return {
+      priceIndex: 100,
+      growth: WORKBOOK_R1_DEMAND_FACTOR,
+      seasonal: 1,
+      marketGrowth: WORKBOOK_R1_DEMAND_FACTOR,
+      rawIndex: 1,
+      demandFactor: WORKBOOK_R1_DEMAND_FACTOR,
+      capacityFactor: 1,
+      event: null,
+      presetKey: 'workbook-r1-calibration'
+    };
+  }
+
   const random = rngFrom(`${state.roomCode || state.teamName || 'LOCAL'}-R${round}`);
   const presetKey = state.mode === 'competition' ? 'auto' : (state.scenarioPreset || 'auto');
   const preset = SCENARIO_PRESETS[presetKey] || SCENARIO_PRESETS.auto;
@@ -102,11 +130,11 @@ export function simulateRound(state) {
     const conversionFactor = Number(company.conversionFactor || TARGET_CONVERSION_FACTOR);
 
     const quality = clamp(
-      company.quality + 0.08 * Math.log1p(decision.rd / 200000) - 0.005,
+      company.quality + qualityResponse * Math.log1p(decision.rd / 200000) - 0.005,
       0.10, 0.95
     );
     const image = clamp(
-      company.image + 0.043 * Math.log1p(decision.marketing / 150000) - 0.015,
+      company.image + imageResponse * Math.log1p(decision.marketing / 150000) - 0.015,
       0.10, 0.95
     );
 
@@ -136,11 +164,11 @@ export function simulateRound(state) {
     const conversionNext = nextConversionFactor(conversionFactor, decision.maintenance);
 
     const attractiveness = Math.exp(
-      quality * 2.20 +
-      image * 1.55 -
-      ((decision.price / 6.40) - 1) * 2.30 +
-      Math.log1p(decision.marketing / 180000) * 0.08 +
-      Math.log1p(decision.rd / 220000) * 0.05
+      quality * ATTRACTIVENESS_QUALITY_WEIGHT +
+      image * ATTRACTIVENESS_IMAGE_WEIGHT -
+      ((decision.price / 6.40) - 1) * ATTRACTIVENESS_PRICE_WEIGHT +
+      Math.log1p(decision.marketing / 180000) * marketingWeight +
+      Math.log1p(decision.rd / 220000) * rdWeight
     );
 
     return {
@@ -166,7 +194,7 @@ export function simulateRound(state) {
 
     const conversionWaste = clamp((TARGET_CONVERSION_FACTOR - p.conversionFactor) / TARGET_CONVERSION_FACTOR, -0.05, 0.25);
     const overtimePenalty = Math.max(0, utilization - 1) * 0.40;
-    const directUnitCost = 3.24 * economy.rawIndex * (1 + conversionWaste) + overtimePenalty;
+    const directUnitCost = directUnitCostBase * economy.rawIndex * (1 + conversionWaste) + overtimePenalty;
 
     const purchaseCost = decision.materialPurchase * MATERIAL_PRICE * economy.rawIndex;
     const depreciation = 90000 + decision.equipment * 0.08;

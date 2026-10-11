@@ -100,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.3.1</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.2</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -877,18 +877,42 @@ export function scenariosView(state) {
     </section>`;
 }
 
+function calibrationValue(key, value) {
+  if (key === 'marketShare') return pct(value);
+  if (key === 'quality' || key === 'image') return fixed(value, 3);
+  if (key === 'unitCost') return money(value);
+  if (['revenue','netProfit','cash','overdraft','equity'].includes(key)) return money(value);
+  return num(value);
+}
+
 export function modelView(state) {
   const calibration = calibrationReport(state);
-  const calibrationLabel = !calibration.available ? 'Run R1 Reference' : calibration.comparable ? `${calibration.score}/100` : 'Not comparable';
-  return `<div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Pisahkan observed calibration anchors dari training-model approximations dan ukur fidelity saat input reference digunakan.</p></div></div>
+  const calibrationLabel = !calibration.available
+    ? 'Run R1 Reference'
+    : calibration.comparable
+      ? `${calibration.score}/100`
+      : 'Not comparable';
+  const fidelityLabel = calibration.fidelityBand === 'high'
+    ? 'HIGH FIDELITY'
+    : calibration.fidelityBand === 'moderate'
+      ? 'MODERATE'
+      : calibration.fidelityBand === 'low'
+        ? 'LOW'
+        : 'PENDING';
+  const phase = calibration.phase || null;
+  const legacy = state.logicCalibrationProfile === 'legacy-active-pre-v14';
+
+  return `<div class="page-head"><div><div class="eyebrow">AUDITABILITY</div><h1>Model Transparency</h1><p class="subtitle">Phase 1 mengkalibrasi practice engine pada observed R0 → R1 pair dan mengukur residual secara eksplisit.</p></div></div>
+    ${legacy ? `<div class="callout warn"><strong>Legacy active run.</strong> Reset game untuk memakai Phase-1 calibration profile dari baseline R0.</div>` : ''}
     <section class="dashboard-grid">
       <div class="card">${cardHead('OBSERVED DATA','Calibration Anchors','◈')}<div class="anchor-grid">${OBSERVED_ANCHORS.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong><small>Observed calibration anchor</small></div>`).join('')}</div></div>
       <div class="card">${cardHead('CALIBRATION LAB','R1 Fidelity','◎')}
-        <div class="calibration-score"><span>Calibration Score</span><strong>${calibrationLabel}</strong><small>${!calibration.available ? 'Load R1 Reference lalu submit Round 1.' : calibration.comparable ? 'Score = 100 − mean capped absolute % error.' : `${!calibration.referenceDecision ? 'Round 1 decision berbeda dari observed R1 reference.' : !calibration.calibratedEnvironment ? 'Decision cocok, tetapi run bukan Workbook R1 calibration environment.' : 'Run belum comparable.'}`}</small></div>
-        ${calibration.available ? `<div class="calibration-table"><div class="table-wrap"><table><thead><tr><th>Metric</th><th>Observed</th><th>Simulated</th><th>Error</th></tr></thead><tbody>${calibration.rows.map(row=>`<tr><td>${esc(row.label)}</td><td>${row.key==='marketShare'?pct(row.observed):num(row.observed)}</td><td>${row.key==='marketShare'?pct(row.simulated):num(row.simulated)}</td><td class="${row.errorPct===null?'':row.errorPct<15?'good':row.errorPct<35?'warn':'bad'}">${row.errorPct===null?'n/a':fixed(row.errorPct,1)+'%'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+        <div class="calibration-score"><span>Calibration Score</span><strong>${calibrationLabel}</strong><small>${!calibration.available ? 'Workbook mode → Load R1 Reference → Submit Round 1.' : calibration.comparable ? `${fidelityLabel} · mean abs. error ${fixed(calibration.meanErrorPct,3)}% · max ${fixed(calibration.maxErrorPct,3)}%` : !calibration.referenceDecision ? 'Round 1 decision berbeda dari observed R1 reference.' : !calibration.calibratedEnvironment ? 'Decision cocok, tetapi run bukan Workbook R1 calibration environment.' : 'Run belum comparable.'}</small></div>
+        ${calibration.available ? `<div class="calibration-table"><div class="table-wrap"><table><thead><tr><th>Metric</th><th>Observed</th><th>Simulated</th><th>Error</th></tr></thead><tbody>${calibration.rows.map(row=>`<tr><td>${esc(row.label)}</td><td>${calibrationValue(row.key,row.observed)}</td><td>${calibrationValue(row.key,row.simulated)}</td><td class="${row.errorPct===null?'':row.errorPct<1?'good':row.errorPct<5?'warn':'bad'}">${row.errorPct===null?'n/a':fixed(row.errorPct,3)+'%'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
         <hr>
+        ${phase ? `<div class="calibration-phase"><div><span>Profile</span><strong>${esc(phase.label)}</strong><small>${esc(phase.scope)}</small></div><div class="table-wrap"><table><thead><tr><th>Transparent fitted parameter</th><th>Value</th></tr></thead><tbody>${phase.coefficients.map(([label,value])=>`<tr><td>${esc(label)}</td><td>${fixed(value,6)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
         ${TRAINING_PROXY_NOTES.map(x=>`<div class="proxy-note">${esc(x)}</div>`).join('')}
-        <div class="callout">Calibration Lab mengevaluasi output model terhadap anchor yang kita punya; ini bukan bukti formula proprietary berhasil direplikasi.</div>
+        <div class="callout">Score tinggi pada satu R1 pair adalah in-sample fit, bukan bukti formula proprietary berhasil direplikasi. Validasi R2–R5 tetap diperlukan.</div>
       </div>
     </section>`;
 }

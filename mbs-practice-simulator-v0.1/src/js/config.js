@@ -24,6 +24,18 @@ export const CAPACITY_COST_PER_UNIT = 20;
 export const TARGET_CONVERSION_FACTOR = 0.70;
 export const MAINTENANCE_REFERENCE = 280000;
 
+// v1.4.x transparent Phase-1 calibration coefficients.
+// These are practice-model fit parameters, not proprietary TopBoss formulas.
+export const QUALITY_RD_RESPONSE = 0.093;
+export const IMAGE_MARKETING_RESPONSE = 0.043;
+export const ATTRACTIVENESS_QUALITY_WEIGHT = 2.20;
+export const ATTRACTIVENESS_IMAGE_WEIGHT = 1.55;
+export const ATTRACTIVENESS_PRICE_WEIGHT = 2.30;
+export const ATTRACTIVENESS_MARKETING_WEIGHT = 0.25;
+export const ATTRACTIVENESS_RD_WEIGHT = 0.50;
+export const DIRECT_UNIT_COST_BASE = 3.325792;
+export const WORKBOOK_R1_DEMAND_FACTOR = 1.13528475;
+
 export const BOT_STRATEGIES = [
   ['PREMIUM', 'Premium'],
   ['LEAN COST', 'Low Cost'],
@@ -80,7 +92,7 @@ export const TRAINING_PROXY_NOTES = [
   'Demand response and competitive attractiveness are independent training approximations.',
   'Practice NPV is a transparent proxy, not the proprietary TopBoss NPV equation.',
   'Balanced Score is a practice proxy built from profit, liquidity, market share, and returns.',
-  'Cost and finance relationships are calibrated heuristics and should be refined as more real decision → result pairs become available.',
+  'v1.4 Phase 1 fits transparent practice coefficients to the observed R0 → R1 reference pair; R2–R5 observations are still needed for out-of-sample validation.',
   'AI competitors are strategy archetypes that adapt to prior-round performance; they are not replicas of actual teams.',
   'v1.3 uses a 16-company Round 0 equal-share baseline (6.25% each). This is a parity assumption inferred from the observed 6.25% Round 0 share and the 7,022,064 base market size; competitor names and strategies remain synthetic.'
 ];
@@ -91,14 +103,36 @@ export const R1_CALIBRATION = {
   sales: 291968,
   marketShare: 0.0693,
   finishedGoods: 0,
+  production: 240968,
   capacity: 418924,
   rawMaterial: 2405416,
+  quality: 0.34,
+  image: 0.62,
   unitCost: 7.96,
   revenue: 1868595,
   netProfit: -456502,
   cash: 0,
   overdraft: 776366,
   equity: 10254050
+};
+
+export const CALIBRATION_PHASE1 = {
+  id: 'r0-r1-reference-v14',
+  label: 'Logic Calibration Phase 1',
+  scope: 'Observed R0 baseline + one observed R1 decision/result pair',
+  comparableMode: 'workbook',
+  observedRound: 1,
+  coefficients: [
+    ['Quality R&D response', QUALITY_RD_RESPONSE],
+    ['Image marketing response', IMAGE_MARKETING_RESPONSE],
+    ['Attractiveness: quality', ATTRACTIVENESS_QUALITY_WEIGHT],
+    ['Attractiveness: image', ATTRACTIVENESS_IMAGE_WEIGHT],
+    ['Attractiveness: price', ATTRACTIVENESS_PRICE_WEIGHT],
+    ['Attractiveness: marketing', ATTRACTIVENESS_MARKETING_WEIGHT],
+    ['Attractiveness: R&D', ATTRACTIVENESS_RD_WEIGHT],
+    ['Direct unit-cost base', DIRECT_UNIT_COST_BASE],
+    ['Workbook R1 demand factor', WORKBOOK_R1_DEMAND_FACTOR]
+  ]
 };
 
 export const SCENARIO_PRESETS = {

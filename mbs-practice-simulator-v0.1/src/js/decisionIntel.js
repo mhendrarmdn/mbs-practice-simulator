@@ -1,4 +1,4 @@
-import { MATERIAL_PER_UNIT, OVERTIME_LIMIT, R1_CALIBRATION, ROUND1_REFERENCE } from './config.js';
+import { CALIBRATION_PHASE1, MATERIAL_PER_UNIT, OVERTIME_LIMIT, R1_CALIBRATION, ROUND1_REFERENCE } from './config.js';
 import { userCompany } from './state.js';
 import { clamp } from './utils.js';
 
@@ -138,8 +138,11 @@ export function calibrationReport(state) {
     ['Sales','sales'],
     ['Market Share','marketShare'],
     ['Finished Goods','finishedGoods'],
+    ['Production','production'],
     ['Next Capacity','capacity'],
     ['RM Inventory','rawMaterial'],
+    ['Quality','quality'],
+    ['Image','image'],
     ['Unit Cost','unitCost'],
     ['Revenue','revenue'],
     ['Net Earnings','netProfit'],
@@ -158,8 +161,29 @@ export function calibrationReport(state) {
   });
 
   const scored = rows.filter(row => row.errorPct !== null);
-  const meanError = scored.length ? scored.reduce((s,row)=>s + Math.min(row.errorPct,100),0) / scored.length : 100;
+  const meanError = scored.length
+    ? scored.reduce((sum,row)=>sum + Math.min(row.errorPct,100),0) / scored.length
+    : 100;
+  const maxError = scored.length ? Math.max(...scored.map(row => row.errorPct)) : null;
   const score = comparable ? clamp(Math.round(100 - meanError), 0, 100) : null;
+  const fidelityBand = !comparable
+    ? 'not-comparable'
+    : meanError < 1 && maxError < 2
+      ? 'high'
+      : meanError < 5 && maxError < 10
+        ? 'moderate'
+        : 'low';
 
-  return { available: true, comparable, score, rows };
+  return {
+    available: true,
+    comparable,
+    score,
+    rows,
+    meanErrorPct: comparable ? meanError : null,
+    maxErrorPct: comparable ? maxError : null,
+    fidelityBand,
+    phase: CALIBRATION_PHASE1,
+    referenceDecision,
+    calibratedEnvironment
+  };
 }
