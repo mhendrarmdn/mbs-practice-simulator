@@ -5,6 +5,15 @@ export const ROLE_KEY = 'mbs_room_role_v01';
 export const ROOM_SESSION_KEY = 'mbs_room_session_v03';
 export const THEME_KEY = 'mbs_theme_v02';
 
+// Public deployment defaults. Vite replaces these at build time when configured in Vercel.
+// The Supabase anon/publishable key is intentionally public; never put a service-role key here.
+export const DEPLOY_SUPABASE_URL = String(import.meta.env?.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+export const DEPLOY_SUPABASE_ANON_KEY = String(
+  import.meta.env?.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  ''
+);
+
 export const MAX_ROUNDS = 4;
 export const WORKBOOK_RESULT_ROUNDS = 5;
 export const WORKBOOK_PLAN_ROUND = 6;

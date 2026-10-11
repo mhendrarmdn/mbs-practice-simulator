@@ -1975,3 +1975,39 @@ body{
 .callout.warn strong{
   color:#8a6412!important;
 }
+
+
+/* v1.4.3 — portable Supabase deployment config */
+.connection-source{
+  margin-bottom:12px;
+  padding:10px 12px;
+  border:1px solid #cddbe7;
+  border-left:4px solid #2d7db7;
+  border-radius:5px;
+  background:#f7fbfe;
+}
+.connection-source span,
+.connection-source strong,
+.connection-source small{display:block}
+.connection-source span{
+  color:#718396;
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.connection-source strong{
+  margin-top:3px;
+  color:#245b91;
+  font-size:12px;
+}
+.connection-source small{
+  margin-top:3px;
+  color:#64798d;
+  font-size:9px;
+  line-height:1.45;
+}
+.connection-source.warn{
+  border-left-color:#d39c1d;
+  background:#fffaf0;
+}
+.connection-source.warn strong{color:#8a6412}

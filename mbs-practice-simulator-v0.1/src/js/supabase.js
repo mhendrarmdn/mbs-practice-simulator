@@ -1,17 +1,43 @@
-import { CONFIG_KEY, ROLE_KEY, ROOM_SESSION_KEY } from './config.js';
+import {
+  CONFIG_KEY,
+  DEPLOY_SUPABASE_ANON_KEY,
+  DEPLOY_SUPABASE_URL,
+  ROLE_KEY,
+  ROOM_SESSION_KEY
+} from './config.js';
 
 export function getSupabaseConfig() {
+  let stored = {};
   try {
-    return JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+    stored = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}') || {};
   } catch {
-    return {};
+    stored = {};
   }
+
+  const url = String(stored.url || DEPLOY_SUPABASE_URL || '').replace(/\/$/, '');
+  const key = String(stored.key || DEPLOY_SUPABASE_ANON_KEY || '');
+
+  return {
+    url,
+    key,
+    source: stored.url && stored.key
+      ? 'browser'
+      : url && key
+        ? 'deployment'
+        : 'missing'
+  };
 }
 
 export function saveSupabaseConfig(url, key) {
+  const cleanUrl = String(url || '').replace(/\/$/, '');
+  const cleanKey = String(key || '');
+
+  // Empty fields should not overwrite working deployment defaults.
+  if (!cleanUrl && !cleanKey) return;
+
   localStorage.setItem(CONFIG_KEY, JSON.stringify({
-    url: String(url || '').replace(/\/$/, ''),
-    key: String(key || '')
+    url: cleanUrl,
+    key: cleanKey
   }));
 }
 
@@ -35,7 +61,9 @@ export function clearRoomSession() {
 
 export async function rpc(name, params) {
   const config = getSupabaseConfig();
-  if (!config.url || !config.key) throw new Error('Supabase URL / anon key belum diset.');
+  if (!config.url || !config.key) {
+    throw new Error('Supabase connection belum tersedia di browser ini. Isi URL + anon key sekali, atau set VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di Vercel agar Incognito/device lain bisa join tanpa setup manual.');
+  }
 
   const response = await fetch(`${config.url}/rest/v1/rpc/${name}`, {
     method: 'POST',

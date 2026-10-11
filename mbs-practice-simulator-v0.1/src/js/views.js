@@ -100,7 +100,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.2</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.4.3</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -921,6 +921,11 @@ export function setupView(state) {
   const config = getSupabaseConfig();
   const session = getRoomSession();
   const captain = isCaptain() || !state.roomCode;
+  const connectionLabel = config.source === 'deployment'
+    ? 'Deployment default'
+    : config.source === 'browser'
+      ? 'Browser override'
+      : 'Not configured';
 
   return `
     <div class="page-head"><div><div class="eyebrow">TEAM WORKSPACE</div><h1>Room & Setup</h1><p class="subtitle">v0.3 menambahkan member presence, Captain authority, atomic shared draft, dan revision-safe room state.</p></div></div>
@@ -949,6 +954,14 @@ export function setupView(state) {
 
       <div class="card">
         ${cardHead('SHARED ROOM','Supabase Connection','◎')}
+        <div class="connection-source ${config.source === 'missing' ? 'warn' : ''}">
+          <span>CONNECTION SOURCE</span><strong>${esc(connectionLabel)}</strong>
+          <small>${config.source === 'deployment'
+            ? 'Vercel environment variables aktif. Incognito dan device lain tidak perlu setup Supabase manual.'
+            : config.source === 'browser'
+              ? 'Config tersimpan hanya di browser/profile ini.'
+              : 'Isi config di bawah atau pasang Vercel environment variables agar multiplayer portable.'}</small>
+        </div>
         <div class="field"><label><span>Supabase Project URL</span><span>public</span></label><input id="supabaseUrl" placeholder="https://xxxxx.supabase.co" value="${esc(config.url||'')}"></div>
         <div class="field spaced"><label><span>Supabase Anon / Publishable Key</span><span>public key</span></label><input id="supabaseKey" type="password" placeholder="Public anon key" value="${esc(config.key||'')}"></div>
 
