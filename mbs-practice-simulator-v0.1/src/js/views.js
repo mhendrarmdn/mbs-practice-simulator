@@ -10,6 +10,7 @@ import { robustOptimize } from './robustOptimizer.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
 import { officialSyncView } from './officialSyncView.js';
 import { calibrationLabView } from './calibrationView.js';
+import { warRoomView } from './warRoom.js';
 import {
   parityDashboardView,
   economicEnvironmentView,
@@ -51,6 +52,7 @@ const NAV_ICONS = {
   workbook: 'WL',
   strategy: 'SL',
   calibration: 'CL',
+  warroom: 'WR',
   optimizer: 'RO',
   scenarios: 'SC',
   model: 'MT',
@@ -112,7 +114,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.8.0</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.9.0</small></div>
         </div>
         <nav class="nav">
           ${navGroup('MANAGEMENT', [
@@ -143,6 +145,7 @@ export function shell(state, activeTab, themePreference, ui = {}) {
           ${navGroup('PRACTICE TOOLS', [
             ['matrix','Decision Matrices'],
             ['competition','Competition Center'],
+            ['warroom','Decision War Room'],
             ['workbook','Workbook Lab'],
             ['strategy','Strategy Lab'],
             ['calibration','Calibration Lab'],
@@ -1025,6 +1028,7 @@ export function setupView(state) {
 export function bodyForTab(state, activeTab, ui = {}) {
   switch (activeTab) {
     case 'competition': return competitionView(state);
+    case 'warroom': return warRoomView(state);
     case 'workbook': return workbookView(state);
     case 'strategy': return strategyView(state);
     case 'calibration': return calibrationLabView(state);
