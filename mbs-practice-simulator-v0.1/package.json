@@ -1,6 +1,6 @@
 {
   "name": "mbs-practice-simulator",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "tesseract.js": "^5.1.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
