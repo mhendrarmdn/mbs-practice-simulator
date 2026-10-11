@@ -4,6 +4,7 @@ import { buildRound6Review } from './workbookLab.js';
 import { strategyAlignment } from './strategySystem.js';
 import { userCompany } from './state.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
+import { reconciliationForRound } from './officialSync.js';
 
 function addSheet(book, name, rows, widths = []) {
   const sheet = Array.isArray(rows?.[0])
@@ -107,6 +108,30 @@ function financialRows(state, section) {
   });
 }
 
+function officialEnvironmentRows(state) {
+  return Object.entries(state.official?.environments || {})
+    .sort(([a],[b])=>Number(a)-Number(b))
+    .map(([round,value])=>({ Round:`R${round}`, ...value }));
+}
+
+function officialActualRows(state) {
+  return Object.entries(state.official?.actuals || {})
+    .sort(([a],[b])=>Number(a)-Number(b))
+    .map(([round,entry])=>({ Round:`R${round}`, Source:entry?.source || '', SavedAt:entry?.savedAt || '', ...(entry?.values || {}) }));
+}
+
+function reconciliationRows(state) {
+  const rounds = Object.keys(state.official?.actuals || {}).map(Number).sort((a,b)=>a-b);
+  return rounds.flatMap(round => reconciliationForRound(state, round).map(item => ({
+    Round:`R${round}`,
+    Metric:item.key,
+    Predicted:item.predicted,
+    'Official Actual':item.actual,
+    Difference:item.diff,
+    'Error %':item.pctError
+  })));
+}
+
 export function exportWorkbookExcel(state) {
   const book = XLSX.utils.book_new();
   const user = userCompany(state);
@@ -138,6 +163,9 @@ export function exportWorkbookExcel(state) {
   addSheet(book, 'Cash Flow', financialRows(state, 'cashFlow'), Array(14).fill(20));
   addSheet(book, 'Income Statement', financialRows(state, 'incomeStatement'), Array(18).fill(20));
   addSheet(book, 'Financial Ratios', financialRows(state, 'ratios'), Array(16).fill(20));
+  addSheet(book, 'Official Environment', officialEnvironmentRows(state), Array(14).fill(20));
+  addSheet(book, 'Official Actuals', officialActualRows(state), Array(22).fill(20));
+  addSheet(book, 'Reconciliation', reconciliationRows(state), [10,22,18,18,18,14]);
 
   addSheet(book, 'Strategy Alignment', [
     ['Selected Goal', strategy.goal.label],

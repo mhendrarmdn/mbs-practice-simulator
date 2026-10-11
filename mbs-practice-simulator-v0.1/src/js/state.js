@@ -163,7 +163,7 @@ function baselineField(team = 'MARKOWITZ') {
 
 export function makeInitialState(team = 'MARKOWITZ') {
   return {
-    version: '1.5.0',
+    version: '1.6.0',
     baselineProfile: 'equal-share-16-r0-v13',
     logicCalibrationProfile: 'phase1-r1-v14',
     roomCode: '',
@@ -185,6 +185,12 @@ export function makeInitialState(team = 'MARKOWITZ') {
     lastEvent: null,
     eventHistory: [],
     economy: null,
+    official: {
+      environments: {},
+      actuals: {},
+      predictions: {},
+      evidence: {}
+    },
     surpriseMode: true,
     scenarioPreset: 'auto',
     sensitivity: { key: 'price', deltaPct: 10 },
@@ -217,7 +223,7 @@ function migrateCompany(company) {
 export function migrateState(input) {
   if (!input || !Array.isArray(input.companies)) return makeInitialState();
   const state = deepClone(input);
-  state.version = '1.5.0';
+  state.version = '1.6.0';
   state.mode = ['training', 'competition', 'sandbox', 'workbook'].includes(state.mode) ? state.mode : 'training';
   state.timerSeconds = Number(state.timerSeconds) > 0 ? Number(state.timerSeconds) : DEFAULT_TIMER_SECONDS;
   state.timerRemaining = Number.isFinite(Number(state.timerRemaining)) ? Number(state.timerRemaining) : state.timerSeconds;
@@ -234,6 +240,11 @@ export function migrateState(input) {
   state.strategyGoal = state.strategyGoal || 'balancedValue';
   state.optimizerRisk = ['conservative','balanced','aggressive'].includes(state.optimizerRisk) ? state.optimizerRisk : 'balanced';
   state.workbookPlan = state.workbookPlan || null;
+  state.official = state.official && typeof state.official === 'object' ? state.official : {};
+  state.official.environments = state.official.environments && typeof state.official.environments === 'object' ? state.official.environments : {};
+  state.official.actuals = state.official.actuals && typeof state.official.actuals === 'object' ? state.official.actuals : {};
+  state.official.predictions = state.official.predictions && typeof state.official.predictions === 'object' ? state.official.predictions : {};
+  state.official.evidence = state.official.evidence && typeof state.official.evidence === 'object' ? state.official.evidence : {};
   state.revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
   state.roomMembers = Array.isArray(state.roomMembers) ? state.roomMembers : [];
   state.companies = state.companies.map(migrateCompany);

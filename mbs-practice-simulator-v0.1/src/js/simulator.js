@@ -21,6 +21,7 @@ import {
   WORKBOOK_R1_DEMAND_FACTOR
 } from './config.js';
 import { snapshot, userCompany } from './state.js';
+import { officialEnvironmentForRound } from './officialSync.js';
 import { clamp, rngFrom } from './utils.js';
 
 export function normalizeDecision(decision) {
@@ -37,6 +38,33 @@ export function normalizeDecision(decision) {
 }
 
 export function economyForRound(state, round) {
+  const official = officialEnvironmentForRound(state, round);
+  if (official?.confirmed) {
+    const growth = Number(official.growth ?? official.marketGrowth ?? 1);
+    const seasonal = Number(official.seasonal ?? 1);
+    const marketGrowth = Number(official.marketGrowth ?? growth);
+    const rawIndex = Number(official.rawIndex ?? 1);
+    const priceIndex = Number(official.priceIndex ?? rawIndex * 100);
+    const demandFactor = Number(official.demandFactor ?? growth * seasonal);
+    const capacityFactor = Number(official.capacityFactor ?? 1);
+    const event = official.eventTitle
+      ? { title: official.eventTitle, text: official.eventText || 'Official competition environment override.', raw: rawIndex, demand: demandFactor, capacity: capacityFactor }
+      : null;
+
+    return {
+      priceIndex,
+      growth,
+      seasonal,
+      marketGrowth,
+      rawIndex,
+      demandFactor,
+      capacityFactor,
+      event,
+      presetKey: 'official-topboss',
+      source: 'official'
+    };
+  }
+
   // Controlled replay environment only for the observed Workbook R1 calibration pair.
   if (
     state.logicCalibrationProfile === 'phase1-r1-v14' &&

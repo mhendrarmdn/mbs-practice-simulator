@@ -28,6 +28,7 @@ import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
 import { buildRound6Review, buildWorkbookPlanMarkdown } from './workbookLab.js';
 import { exportWorkbookExcel } from './excelExporter.js';
 import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
+import { parseOfficialText, recordEvidenceMeta, saveOfficialActual, saveOfficialEnvironment } from './officialSync.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -41,6 +42,7 @@ let sidebarCollapsed = mobileSidebarQuery.matches
 let financialRound = null;
 let parityRound = null;
 let competitiveMetric = 'marketShare';
+let officialRound = null;
 let pollTimer = null;
 let timerTick = null;
 const draftTimers = new Map();
@@ -212,7 +214,7 @@ function render(restartTimer = true) {
 
   root.innerHTML = shell(state, activeTab, getThemePreference(), { sidebarCollapsed });
   try {
-    document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric });
+    document.querySelector('#content').innerHTML = bodyForTab(state, activeTab, { financialRound, parityRound, competitiveMetric, officialRound });
   } catch (error) {
     console.error('View render failed:', activeTab, error);
     const message = String(error?.message || error || 'Unknown render error');
@@ -306,6 +308,25 @@ function bindEvents() {
   document.querySelector('#financialRoundSelect')?.addEventListener('change', event => {
     financialRound = Number(event.target.value);
     render(false);
+  });
+
+  document.querySelector('#officialRoundSelect')?.addEventListener('change', event => {
+    officialRound = Number(event.target.value);
+    render(false);
+  });
+
+  document.querySelector('#officialScreenshot')?.addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const box = document.querySelector('#officialScreenshotBox');
+    if (box) {
+      const url = URL.createObjectURL(file);
+      box.innerHTML = '<img src="' + url + '" alt="TopBoss screenshot evidence"><div><strong>' + file.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') + '</strong><span>' + Math.round(file.size/1024).toLocaleString('en-US') + ' KB · review before entering values</span></div>';
+    }
+    if (!state.roomCode || isCaptain()) {
+      recordEvidenceMeta(state, Number(officialRound ?? state.currentRound ?? 0), file);
+      persistLocal();
+    }
   });
 
   document.querySelectorAll('[data-round-tab]').forEach(button => {
@@ -459,6 +480,82 @@ function bindEvents() {
 
       } else if (action === 'goto-decisions') {
         activeTab = 'decisions';
+
+      } else if (action === 'parse-official-paste') {
+        const textValue = document.querySelector('#officialPaste')?.value || '';
+        const parsed = parseOfficialText(textValue);
+        const setValue = (id, value) => {
+          if (value === undefined || value === null || Number.isNaN(value)) return;
+          const el = document.querySelector('#' + id);
+          if (el) el.value = String(value);
+        };
+        for (const [key,value] of Object.entries(parsed.environment || {})) {
+          if (key === 'eventTitle') {
+            const el=document.querySelector('#officialEnv_eventTitle');
+            if (el) el.value=String(value);
+          } else setValue('officialEnv_' + key,value);
+        }
+        for (const [key,value] of Object.entries(parsed.actual || {})) {
+          setValue('officialActual_' + key,key === 'marketShare' ? Number(value)*100 : value);
+        }
+        alert(parsed.detected
+          ? 'Parsed ' + parsed.detected + ' field(s). Check every value before Save.'
+          : 'Tidak ada field yang dikenali. Gunakan format label: value atau JSON.');
+
+      } else if (action === 'save-official-environment') {
+        if (!captainOnly('Official environment')) return;
+        const round = Number(officialRound ?? state.currentRound ?? 0);
+        const read = id => {
+          const raw=document.querySelector('#'+id)?.value;
+          if (raw === '' || raw === undefined) return undefined;
+          const value=Number(String(raw).replaceAll(',',''));
+          return Number.isFinite(value) ? value : undefined;
+        };
+        const environment = {
+          priceIndex: read('officialEnv_priceIndex'),
+          growth: read('officialEnv_growth'),
+          seasonal: read('officialEnv_seasonal'),
+          marketGrowth: read('officialEnv_marketGrowth'),
+          rawIndex: read('officialEnv_rawIndex'),
+          demandFactor: read('officialEnv_demandFactor'),
+          capacityFactor: read('officialEnv_capacityFactor'),
+          eventTitle: document.querySelector('#officialEnv_eventTitle')?.value?.trim() || ''
+        };
+        saveOfficialEnvironment(state,round,environment,{source:'official-topboss'});
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        alert('Official environment R' + round + ' aktif. Simulasi ronde tersebut akan memakai angka ini.');
+        render(false);
+
+      } else if (action === 'save-official-actual') {
+        if (!captainOnly('Official actual result')) return;
+        const round = Number(officialRound ?? state.currentRound ?? 0);
+        if (round > Number(state.currentRound||0)) {
+          throw new Error('Official actual hanya boleh diadopsi untuk ronde yang sudah disimulasikan / dimainkan.');
+        }
+        const read = id => {
+          const raw=document.querySelector('#'+id)?.value;
+          if (raw === '' || raw === undefined) return undefined;
+          const value=Number(String(raw).replaceAll(',',''));
+          return Number.isFinite(value) ? value : undefined;
+        };
+        const actual = {};
+        for (const key of ['revenue','netProfit','sales','price','unitCost','cash','overdraft','equity','quality','image','potentialDemand','production','capacity','rawMaterial','finishedGoods']) {
+          const value=read('officialActual_'+key);
+          if (value !== undefined) actual[key]=value;
+        }
+        const sharePct=read('officialActual_marketShare');
+        if (sharePct !== undefined) actual.marketShare=sharePct/100;
+        if (!Object.keys(actual).length) throw new Error('Isi minimal satu actual result sebelum Save.');
+        saveOfficialActual(state,round,actual,{source:'official-topboss',applyToState:true});
+        if (round === Number(state.currentRound||0)) {
+          const user=userCompany(state);
+          if (user) state.draft.price=Number(user.price||state.draft.price||0);
+        }
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        alert('Official actual R' + round + ' tersimpan dan diadopsi sebagai live state. Prediction lama tetap tersedia untuk reconciliation.');
+        render(false);
 
       } else if (action === 'load-r1') {
         state.draft = deepClone(ROUND1_REFERENCE);
