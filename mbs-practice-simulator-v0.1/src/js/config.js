@@ -102,6 +102,7 @@ export const TRAINING_PROXY_NOTES = [
   'Practice NPV is a transparent proxy, not the proprietary TopBoss NPV equation.',
   'Balanced Score is a practice proxy built from profit, liquidity, market share, and returns.',
   'v1.4 Phase 1 fits transparent practice coefficients to the observed R0 → R1 reference pair; R2–R5 observations are still needed for out-of-sample validation.',
+  'v1.8 adaptive calibration learns bounded, shrinkage-weighted corrections from official prediction-vs-actual pairs. It improves the practice model but does not reveal or replicate proprietary TopBoss formulas.',
   'AI competitors are strategy archetypes that adapt to prior-round performance; they are not replicas of actual teams.',
   'v1.3 uses a 16-company Round 0 equal-share baseline (6.25% each). This is a parity assumption inferred from the observed 6.25% Round 0 share and the 7,022,064 base market size; competitor names and strategies remain synthetic.'
 ];

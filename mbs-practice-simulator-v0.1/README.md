@@ -1,8 +1,8 @@
-# MBS Practice Simulator v1.7.0
+# MBS Practice Simulator v1.8.0
 
 Independent web-based training simulator for Macro Business Simulation / TopBoss-style competition practice.
 
-> This is a **training twin and competition decision cockpit**, not an official TopBoss clone. v1.7 keeps TopBoss as the official source of truth while adding verified Official Sync, OCR-assisted screenshot intake, predicted-vs-actual reconciliation, and detailed official financial-statement import.
+> This is a **training twin and competition decision cockpit**, not an official TopBoss clone. v1.8 keeps TopBoss as the official source of truth and adds adaptive, bounded calibration from official prediction-vs-actual pairs so later-round decision analysis can learn from earlier model error.
 
 ## v1.0 focus — TopBoss Workflow Parity + Full Financial Statements
 

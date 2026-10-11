@@ -2527,3 +2527,128 @@ body{
     grid-template-columns:1fr;
   }
 }
+
+
+/* v1.8.0 — Adaptive Calibration Lab */
+.calibration-hero{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:14px;
+}
+.calibration-score{
+  min-width:0;
+  padding:14px 16px;
+  border:1px solid #d6e0e8;
+  border-radius:7px;
+  background:#fff;
+}
+.calibration-score>span{
+  display:block;
+  margin-bottom:7px;
+  color:#6d8194;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.08em;
+}
+.calibration-score>strong{
+  display:block;
+  color:#173a59;
+  font-size:22px;
+  line-height:1.1;
+}
+.calibration-score>small{
+  display:block;
+  margin-top:6px;
+  color:#6f8294;
+  font-size:9px;
+}
+.calibration-grid{
+  align-items:stretch;
+  margin-top:14px;
+}
+.calibration-factor-list{
+  display:grid;
+  gap:0;
+}
+.calibration-factor{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:10px 0;
+  border-bottom:1px solid #e3e9ee;
+}
+.calibration-factor:last-child{
+  border-bottom:0;
+}
+.calibration-factor>div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.calibration-factor strong{
+  color:#1d405e;
+  font-size:10px;
+}
+.calibration-factor small{
+  color:#718496;
+  font-size:8px;
+  line-height:1.35;
+}
+.calibration-factor>span{
+  flex:0 0 auto;
+  min-width:64px;
+  text-align:right;
+  font:800 13px 'IBM Plex Mono',monospace;
+  color:#173a59;
+}
+.calibration-factor>span.good{color:#148255}
+.calibration-factor>span.warn{color:#b27600}
+.calibration-factor>span.neutral{color:#5d7184}
+.calibration-pipeline{
+  display:grid;
+  gap:8px;
+}
+.calibration-pipeline>div{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:8px 10px;
+  border:1px solid #dce5ec;
+  border-radius:5px;
+  background:#f9fbfc;
+}
+.calibration-pipeline b{
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  flex:0 0 22px;
+  border-radius:50%;
+  background:#1f5f99;
+  color:#fff;
+  font-size:8px;
+}
+.calibration-pipeline span{
+  color:#536a7e;
+  font-size:9px;
+  font-weight:600;
+}
+.calibration-table td,
+.calibration-table th{
+  white-space:nowrap;
+}
+.calibration-safety{
+  margin-top:14px;
+}
+@media(max-width:1100px){
+  .calibration-hero{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:640px){
+  .calibration-hero{
+    grid-template-columns:1fr;
+  }
+}
