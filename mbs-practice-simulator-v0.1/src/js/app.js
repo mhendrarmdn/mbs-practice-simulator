@@ -87,8 +87,10 @@ async function refreshRoom({ rerender = true } = {}) {
       remoteRevision > Number(state.revision || 0) ||
       Array.isArray(payload?.members);
 
-    if (shouldApply && applyRoomPayload(payload)) {
-      if (rerender) render(false);
+    if (shouldApply) {
+      // Preserve ongoing edits instead of replacing focused DOM during background polling.
+      const editing = document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]');
+      if (!editing && applyRoomPayload(payload) && rerender) render(false);
     }
     markSync('● Online');
     return payload;
@@ -207,7 +209,15 @@ function startTimer() {
     } else {
       saveLocal(state, { touch: false });
     }
-    render(false);
+    // The old full render every second destroyed focused inputs while typing.
+    const badge=document.querySelector('.timer-badge');
+    if (badge) {
+      const mm=String(Math.floor(remaining/60)).padStart(2,'0');
+      const ss=String(remaining%60).padStart(2,'0');
+      badge.textContent='◷ '+mm+':'+ss;
+      badge.classList.toggle('danger-badge',remaining<=120);
+    }
+    if (remaining<=0) render(false);
   }, 1000);
 }
 
@@ -589,7 +599,9 @@ function bindEvents() {
       state.warRoom=room;
       persistLocal();
       if(state.roomCode) await commitCanonicalState();
-      render(false);
+      // Keep the current input DOM and focus; scoreboard refresh happens on demand.
+      const badge=document.querySelector('#syncBadge');
+      if(badge) badge.textContent=state.roomCode?'● Online':'● Saved';
     });
   });
 
