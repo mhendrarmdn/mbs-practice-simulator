@@ -2652,3 +2652,20 @@ body{
     grid-template-columns:1fr;
   }
 }
+
+/* v1.9 Decision War Room */
+.war-table{min-width:1450px;font-size:10px}
+.war-table th,.war-table td{padding:9px 11px;white-space:nowrap}
+.war-field-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.war-field-grid label{display:grid;gap:5px;color:#506b82;font-size:11px;font-weight:700}
+.war-field-grid input{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d6e1e9;border-radius:5px;padding:10px;color:#173b58;background:#fff;font:600 12px 'IBM Plex Mono',monospace}
+.war-candidate{margin-top:14px}
+.war-feedback{margin-top:12px;color:#53697b;font-size:11px}
+.war-feedback p{padding:7px 0;border-bottom:1px solid #e3e9ef}
+.war-final{margin-top:20px;border:2px solid #265e8c}
+.war-input-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.war-input-grid>div{padding:15px;border:1px solid #cbdbe8;background:#f7fafc;border-radius:6px}
+.war-input-grid span{display:block;color:#58748a;font-size:10px;font-weight:700;margin-bottom:8px}
+.war-input-grid strong{font:800 20px 'IBM Plex Mono',monospace;color:#173b58}
+@media(max-width:900px){.war-field-grid,.war-input-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.war-field-grid,.war-input-grid{grid-template-columns:1fr}}
