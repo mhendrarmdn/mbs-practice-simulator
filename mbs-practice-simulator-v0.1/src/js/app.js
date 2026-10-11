@@ -30,6 +30,8 @@ import { exportWorkbookExcel } from './excelExporter.js';
 import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
 import { FINANCIAL_FIELDS, parseOfficialText, recordEvidenceMeta, saveOcrAudit, saveOfficialActual, saveOfficialEnvironment, saveOfficialFinancial } from './officialSync.js';
 import { createWorker } from 'tesseract.js';
+import { warRoomFor, WAR_FIELDS } from './warRoom.js';
+import { normalizeDecision } from './simulator.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -572,6 +574,25 @@ function bindEvents() {
     render();
   });
 
+
+  document.querySelectorAll('[data-war-field]').forEach(input => {
+    input.addEventListener('change', async () => {
+      if (!captainOnly('Edit war-room candidates')) return;
+      const room=warRoomFor(state);
+      if(room.final) return;
+      const candidate=room.candidates.find(x=>x.id===input.dataset.warId);
+      if(!candidate) return;
+      const key=input.dataset.warField;
+      const raw=Number(input.value);
+      if(!Number.isFinite(raw)||raw<0) {alert('Enter a valid nonnegative value.');render(false);return;}
+      candidate.decision=normalizeDecision({...candidate.decision,[key]:raw});
+      state.warRoom=room;
+      persistLocal();
+      if(state.roomCode) await commitCanonicalState();
+      render(false);
+    });
+  });
+
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', async () => {
     const action = button.dataset.action;
     try {
@@ -583,6 +604,64 @@ function bindEvents() {
         render(false);
         return;
 
+
+      } else if (action === 'war-vote') {
+        if(state.roomCode && !getRoomSession()?.memberId) {alert('Join the room to vote.');return;}
+        const room=warRoomFor(state);
+        if(room.final) return;
+        const candidate=room.candidates.find(x=>x.id===button.dataset.warId);
+        if(!candidate) return;
+        const voter=state.roomCode ? String(getRoomSession()?.memberId||'') : 'local-captain';
+        room.candidates.forEach(x=>{x.votes=(x.votes||[]).filter(v=>v!==voter);});
+        candidate.votes.push(voter);
+        state.warRoom=room;
+        persistLocal();
+        if(state.roomCode) {
+          if(!isCaptain()) { alert('Vote recorded locally. Captain controls canonical commits; ask Captain to capture your preference.'); }
+          else await commitCanonicalState();
+        }
+      } else if (action === 'war-comment') {
+        if(!captainOnly('Shared war-room rationale')) return;
+        const room=warRoomFor(state);
+        if(room.final) return;
+        const candidate=room.candidates.find(x=>x.id===button.dataset.warId);
+        if(!candidate) return;
+        const note=prompt('Rationale (max 500 characters):');
+        if(!note?.trim()) return;
+        candidate.comments.push({by:'Captain',text:note.trim().slice(0,500),at:new Date().toISOString()});
+        state.warRoom=room;persistLocal();
+        if(state.roomCode) await commitCanonicalState();
+      } else if (action === 'war-final') {
+        if(!captainOnly('Final candidate lock')) return;
+        if(state.currentRound>=state.maxRounds) return;
+        const room=warRoomFor(state);
+        if(room.final) return;
+        const candidate=room.candidates.find(x=>x.id===button.dataset.warId);
+        if(!candidate) return;
+        if(!confirm('Lock '+candidate.name+' for manual official TopBoss entry? This does NOT submit to TopBoss.')) return;
+        room.final={id:candidate.id,name:candidate.name,decision:deepClone(candidate.decision),lockedAt:new Date().toISOString(),round:state.currentRound+1};
+        state.warRoom=room;persistLocal();
+        if(state.roomCode) await commitCanonicalState();
+      } else if (action === 'war-unlock') {
+        if(!captainOnly('Unlock final candidate')) return;
+        const reason=prompt('Mandatory reason for unlock:');
+        if(!reason?.trim()) return;
+        const room=warRoomFor(state);
+        if(!room.final) return;
+        room.unlockLog=[...(room.unlockLog||[]),{reason:reason.trim().slice(0,500),at:new Date().toISOString(),final:deepClone(room.final)}];
+        room.final=null;state.warRoom=room;persistLocal();
+        if(state.roomCode) await commitCanonicalState();
+      } else if (action === 'war-apply-final') {
+        if(!captainOnly('Apply locked final candidate')) return;
+        const room=warRoomFor(state);
+        if(!room.final) return;
+        state.draft=normalizeDecision(room.final.decision);
+        persistLocal();
+        if(state.roomCode) {
+          for(const [field,value] of Object.entries(state.draft)) await patchDraft(state,field,value);
+          await refreshRoom({rerender:false});
+        }
+        alert('Locked final copied into MBS Arena Business Decisions. TopBoss submission remains manual.');
       } else if (action === 'goto-decisions') {
         activeTab = 'decisions';
 
