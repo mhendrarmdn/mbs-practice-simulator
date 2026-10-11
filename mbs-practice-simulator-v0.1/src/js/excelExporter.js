@@ -104,7 +104,7 @@ function financialRows(state, section) {
   return availableFinancialRounds(state).map(round => {
     const data = financialForRound(state, round);
     const f = data?.statement?.[section] || {};
-    return { Round: `R${round}`, ...f };
+    return { Round: `R${round}`, Source: data?.isOfficial ? 'Official TopBoss' : (data?.source || 'Practice'), ...f };
   });
 }
 
@@ -130,6 +130,34 @@ function reconciliationRows(state) {
     Difference:item.diff,
     'Error %':item.pctError
   })));
+}
+
+function officialOcrRows(state) {
+  return Object.entries(state.official?.ocr || {})
+    .sort(([a],[b])=>Number(a)-Number(b))
+    .map(([round,item])=>({
+      Round:`R${round}`,
+      Confidence:item?.confidence ?? '',
+      Files:item?.files ?? 0,
+      'Detected Fields':item?.detected ?? 0,
+      'Page Types':(item?.pageTypes || []).join(', '),
+      Reviewed:item?.reviewed ? 'YES' : 'NO',
+      ExtractedAt:item?.extractedAt || ''
+    }));
+}
+
+function evidenceRows(state) {
+  return Object.entries(state.official?.evidence || {})
+    .sort(([a],[b])=>Number(a)-Number(b))
+    .flatMap(([round,raw]) => (Array.isArray(raw) ? raw : [raw]).filter(Boolean).map(item => ({
+      Round:`R${round}`,
+      File:item?.name || '',
+      Type:item?.type || '',
+      Size:item?.size || 0,
+      PageType:item?.pageType || '',
+      Confidence:item?.confidence ?? '',
+      AddedAt:item?.addedAt || ''
+    })));
 }
 
 export function exportWorkbookExcel(state) {
@@ -166,6 +194,8 @@ export function exportWorkbookExcel(state) {
   addSheet(book, 'Official Environment', officialEnvironmentRows(state), Array(14).fill(20));
   addSheet(book, 'Official Actuals', officialActualRows(state), Array(22).fill(20));
   addSheet(book, 'Reconciliation', reconciliationRows(state), [10,22,18,18,18,14]);
+  addSheet(book, 'OCR Audit', officialOcrRows(state), [10,14,10,16,30,12,24]);
+  addSheet(book, 'Evidence Log', evidenceRows(state), [10,32,18,14,18,14,24]);
 
   addSheet(book, 'Strategy Alignment', [
     ['Selected Goal', strategy.goal.label],

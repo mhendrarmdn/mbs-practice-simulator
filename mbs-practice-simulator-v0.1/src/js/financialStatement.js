@@ -1,5 +1,6 @@
 import { MATERIAL_PRICE } from './config.js';
 import { userCompany } from './state.js';
+import { officialFinancialForRound } from './officialSync.js';
 
 const safe = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -127,11 +128,26 @@ export function financialForRound(state, round = state.currentRound) {
   const item = index >= 0 ? history[index] : history.at(-1);
   const previous = index > 0 ? history[index - 1] : null;
   if (!item) return null;
+
+  const official = officialFinancialForRound(state, round);
+  if (official?.statement) {
+    return {
+      round: Number(round),
+      item,
+      statement: official.statement,
+      isDerived: false,
+      isOfficial: true,
+      source: official.source || 'official-topboss'
+    };
+  }
+
   return {
     round: item.round,
     item,
     statement: item.financial || fallbackFinancial(item, previous),
-    isDerived: !item.financial
+    isDerived: !item.financial,
+    isOfficial: false,
+    source: item.financial ? 'simulated' : 'derived-legacy'
   };
 }
 

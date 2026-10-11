@@ -1,6 +1,49 @@
 # Changelog
 
+## v1.7.0 — Vision Intake + Official Financial Sync
+
+### Multi-screenshot OCR draft
+- Official Sync accepts up to 6 TopBoss screenshots in one intake batch.
+- Adds browser-side OCR using Tesseract.js.
+- OCR output is written into a review buffer and mapped into recognized Official Sync fields.
+- Shows overall OCR confidence, number of files, detected fields, and detected page types.
+- **Review gate is mandatory:** OCR never commits directly to official state.
+- Screenshot bytes remain local to the browser; only evidence metadata and OCR audit summaries enter shared room state.
+
+### Page classification
+OCR / pasted text is classified as:
+- Economic Environment
+- Business / operating status
+- Financial Statement
+- Mixed
+
+### Detailed Financial Statement sync
+- Adds official line-item input for:
+  - Balance Sheet
+  - Cash Flow
+  - Income Statement
+- The Financial Statement page now prioritizes the saved official TopBoss statement for the selected round.
+- Practice-model financials remain available when no official detailed statement exists.
+
+### Competition audit trail
+- Stores OCR audit metadata by round.
+- Stores evidence metadata by round.
+- Excel export adds OCR Audit and Evidence Log sheets.
+- Existing Balance Sheet / Cash Flow / Income Statement sheets now include source labels.
+
+### Source hierarchy
+1. Official confirmed TopBoss data
+2. Structured copied table / JSON
+3. Human-verified manual entry
+4. OCR-assisted screenshot draft
+5. Practice-model estimate
+
+### Database
+- No new Supabase migration is required.
+- New official financial / OCR data are carried in the existing revision-safe room-state JSON.
+
 ## v1.6.0 — Official Sync & Reconciliation
+
 
 ### Competition source of truth
 - Adds **Official Sync** to the Status workflow.

@@ -28,7 +28,8 @@ import { buildCompetitionBriefMarkdown } from './competitionCenter.js';
 import { buildRound6Review, buildWorkbookPlanMarkdown } from './workbookLab.js';
 import { exportWorkbookExcel } from './excelExporter.js';
 import { buildOptimizerMarkdown, robustOptimize } from './robustOptimizer.js';
-import { parseOfficialText, recordEvidenceMeta, saveOfficialActual, saveOfficialEnvironment } from './officialSync.js';
+import { FINANCIAL_FIELDS, parseOfficialText, recordEvidenceMeta, saveOcrAudit, saveOfficialActual, saveOfficialEnvironment, saveOfficialFinancial } from './officialSync.js';
+import { createWorker } from 'tesseract.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
@@ -43,6 +44,7 @@ let financialRound = null;
 let parityRound = null;
 let competitiveMetric = 'marketShare';
 let officialRound = null;
+let officialScreenshotFiles = [];
 let pollTimer = null;
 let timerTick = null;
 const draftTimers = new Map();
@@ -288,6 +290,106 @@ function exportOptimizerBrief() {
   URL.revokeObjectURL(url);
 }
 
+function setOfficialFormValue(id, value) {
+  if (value === undefined || value === null || Number.isNaN(value)) return;
+  const el = document.querySelector('#' + id);
+  if (el) el.value = String(value);
+}
+
+function populateOfficialForms(parsed) {
+  for (const [key,value] of Object.entries(parsed?.environment || {})) {
+    if (key === 'eventTitle') {
+      const el=document.querySelector('#officialEnv_eventTitle');
+      if (el) el.value=String(value);
+    } else {
+      setOfficialFormValue('officialEnv_' + key,value);
+    }
+  }
+
+  for (const [key,value] of Object.entries(parsed?.actual || {})) {
+    setOfficialFormValue('officialActual_' + key,key === 'marketShare' ? Number(value)*100 : value);
+  }
+
+  for (const [section,fields] of Object.entries(parsed?.financial || {})) {
+    for (const [key,value] of Object.entries(fields || {})) {
+      setOfficialFormValue('officialFinancial_' + section + '_' + key,value);
+    }
+  }
+}
+
+function mergeOfficialParsed(target, source) {
+  Object.assign(target.environment, source.environment || {});
+  Object.assign(target.actual, source.actual || {});
+  for (const section of ['balanceSheet','cashFlow','incomeStatement']) {
+    Object.assign(target.financial[section], source.financial?.[section] || {});
+  }
+  target.detected += Number(source.detected || 0);
+  if (source.pageType) target.pageTypes.push(source.pageType);
+  return target;
+}
+
+async function extractOfficialScreenshots() {
+  if (!officialScreenshotFiles.length) throw new Error('Pilih minimal satu screenshot TopBoss terlebih dahulu.');
+
+  const status=document.querySelector('#officialOcrStatus');
+  const confidenceEl=document.querySelector('#officialOcrConfidence');
+  if (status) status.textContent='Menyiapkan OCR engine…';
+
+  const worker=await createWorker('eng', 1, {
+    logger: message => {
+      if (!status) return;
+      const pct=Number.isFinite(Number(message.progress)) ? Math.round(Number(message.progress)*100) : null;
+      status.textContent=pct===null ? String(message.status || 'OCR processing…') : String(message.status || 'OCR processing') + ' · ' + pct + '%';
+    }
+  });
+
+  const merged={environment:{},actual:{},financial:{balanceSheet:{},cashFlow:{},incomeStatement:{}},detected:0,pageTypes:[]};
+  const texts=[];
+  const confidences=[];
+
+  try {
+    for (let i=0;i<officialScreenshotFiles.length;i++) {
+      const file=officialScreenshotFiles[i];
+      if (status) status.textContent='OCR screenshot ' + (i+1) + ' / ' + officialScreenshotFiles.length + ' · ' + file.name;
+      const result=await worker.recognize(file);
+      const text=String(result?.data?.text || '').trim();
+      const confidence=Number(result?.data?.confidence);
+      const parsed=parseOfficialText(text);
+      mergeOfficialParsed(merged,parsed);
+      texts.push('===== ' + file.name + ' [' + (parsed.pageType || 'mixed') + '] =====\n' + text);
+      if (Number.isFinite(confidence)) confidences.push(confidence);
+      recordEvidenceMeta(state, Number(officialRound ?? state.currentRound ?? 0), {
+        name:file.name,
+        type:file.type,
+        size:file.size,
+        pageType:parsed.pageType || 'mixed',
+        confidence:Number.isFinite(confidence) ? confidence : null
+      });
+    }
+  } finally {
+    await worker.terminate();
+  }
+
+  const averageConfidence=confidences.length ? confidences.reduce((a,b)=>a+b,0)/confidences.length : null;
+  const paste=document.querySelector('#officialPaste');
+  if (paste) paste.value=texts.join('\n\n');
+  populateOfficialForms(merged);
+
+  saveOcrAudit(state, Number(officialRound ?? state.currentRound ?? 0), {
+    confidence:averageConfidence,
+    files:officialScreenshotFiles.length,
+    detected:merged.detected,
+    pageTypes:merged.pageTypes,
+    reviewed:false
+  });
+  persistLocal();
+  if (state.roomCode && isCaptain()) await commitCanonicalState();
+
+  if (confidenceEl) confidenceEl.textContent=Number.isFinite(averageConfidence) ? averageConfidence.toFixed(1)+'%' : '—';
+  if (status) status.textContent='OCR selesai: ' + merged.detected + ' field(s) terdeteksi dari ' + officialScreenshotFiles.length + ' screenshot. Review semua angka sebelum Save.';
+  return merged;
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => {
@@ -316,17 +418,20 @@ function bindEvents() {
   });
 
   document.querySelector('#officialScreenshot')?.addEventListener('change', event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    officialScreenshotFiles = Array.from(event.target.files || []).slice(0,6);
     const box = document.querySelector('#officialScreenshotBox');
-    if (box) {
-      const url = URL.createObjectURL(file);
-      box.innerHTML = '<img src="' + url + '" alt="TopBoss screenshot evidence"><div><strong>' + file.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') + '</strong><span>' + Math.round(file.size/1024).toLocaleString('en-US') + ' KB · review before entering values</span></div>';
+    if (!box) return;
+    if (!officialScreenshotFiles.length) {
+      box.textContent='Belum ada screenshot dipilih.';
+      return;
     }
-    if (!state.roomCode || isCaptain()) {
-      recordEvidenceMeta(state, Number(officialRound ?? state.currentRound ?? 0), file);
-      persistLocal();
-    }
+    box.innerHTML = '<div class="official-shot-grid">' + officialScreenshotFiles.map(file => {
+      const url=URL.createObjectURL(file);
+      const safe=file.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+      return '<div class="official-shot"><img src="' + url + '" alt="TopBoss screenshot"><span>' + safe + '<small>' + Math.round(file.size/1024).toLocaleString('en-US') + ' KB</small></span></div>';
+    }).join('') + '</div>';
+    const status=document.querySelector('#officialOcrStatus');
+    if (status) status.textContent=officialScreenshotFiles.length + ' screenshot dipilih. Klik Extract OCR Draft; hasil belum akan tersimpan sebagai official data.';
   });
 
   document.querySelectorAll('[data-round-tab]').forEach(button => {
@@ -484,23 +589,24 @@ function bindEvents() {
       } else if (action === 'parse-official-paste') {
         const textValue = document.querySelector('#officialPaste')?.value || '';
         const parsed = parseOfficialText(textValue);
-        const setValue = (id, value) => {
-          if (value === undefined || value === null || Number.isNaN(value)) return;
-          const el = document.querySelector('#' + id);
-          if (el) el.value = String(value);
-        };
-        for (const [key,value] of Object.entries(parsed.environment || {})) {
-          if (key === 'eventTitle') {
-            const el=document.querySelector('#officialEnv_eventTitle');
-            if (el) el.value=String(value);
-          } else setValue('officialEnv_' + key,value);
-        }
-        for (const [key,value] of Object.entries(parsed.actual || {})) {
-          setValue('officialActual_' + key,key === 'marketShare' ? Number(value)*100 : value);
-        }
+        populateOfficialForms(parsed);
         alert(parsed.detected
-          ? 'Parsed ' + parsed.detected + ' field(s). Check every value before Save.'
-          : 'Tidak ada field yang dikenali. Gunakan format label: value atau JSON.');
+          ? 'Parsed ' + parsed.detected + ' field(s) [' + (parsed.pageType || parsed.source) + ']. Check every value before Save.'
+          : 'Tidak ada field yang dikenali. Gunakan format label: value, copied table, JSON, atau screenshot OCR.');
+
+      } else if (action === 'extract-official-ocr') {
+        await extractOfficialScreenshots();
+
+      } else if (action === 'clear-official-ocr') {
+        officialScreenshotFiles=[];
+        const input=document.querySelector('#officialScreenshot');
+        if (input) input.value='';
+        const paste=document.querySelector('#officialPaste');
+        if (paste) paste.value='';
+        const box=document.querySelector('#officialScreenshotBox');
+        if (box) box.textContent='Belum ada screenshot dipilih.';
+        const status=document.querySelector('#officialOcrStatus');
+        if (status) status.textContent='Intake lokal dibersihkan. Official data yang sudah pernah disimpan tidak dihapus.';
 
       } else if (action === 'save-official-environment') {
         if (!captainOnly('Official environment')) return;
@@ -555,6 +661,27 @@ function bindEvents() {
         persistLocal();
         if (state.roomCode) await commitCanonicalState();
         alert('Official actual R' + round + ' tersimpan dan diadopsi sebagai live state. Prediction lama tetap tersedia untuk reconciliation.');
+        render(false);
+
+      } else if (action === 'save-official-financial') {
+        if (!captainOnly('Official financial statement')) return;
+        const round = Number(officialRound ?? state.currentRound ?? 0);
+        if (round > Number(state.currentRound||0)) {
+          throw new Error('Official financial statement hanya boleh disimpan untuk ronde yang sudah dimainkan.');
+        }
+        const statement={balanceSheet:{},cashFlow:{},incomeStatement:{}};
+        for (const [section,fields] of Object.entries(FINANCIAL_FIELDS)) {
+          for (const key of Object.keys(fields)) {
+            const raw=document.querySelector('#officialFinancial_' + section + '_' + key)?.value;
+            if (raw === '' || raw === undefined) continue;
+            const value=Number(String(raw).replaceAll(',',''));
+            if (Number.isFinite(value)) statement[section][key]=value;
+          }
+        }
+        saveOfficialFinancial(state,round,statement,{source:'official-topboss'});
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        alert('Detailed official financial statement R' + round + ' tersimpan. Financial Statement page sekarang memprioritaskan data resmi.');
         render(false);
 
       } else if (action === 'load-r1') {

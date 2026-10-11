@@ -860,8 +860,10 @@ export function parityFinancialStatementView(state, requestedRound) {
   ]);
   return page('Financial Statement','Three-column statement layout aligned to the financial pages visible in the recording.',state,round,
     `<div class="tb-financial-grid">${panel('Balance Sheet',dataTable(['Account','Amount'],balanceRows))}${panel('Cash Flow',dataTable(['Account','Amount'],cashRows))}${panel('Income Statement',dataTable(['Account','Amount'],incomeRows))}</div>
-     <div class="tb-note">${state.official?.actuals?.[String(round)]
-       ? 'Official actual headline metrics exist for this round. Detailed statement line items remain the practice-model statement unless they are imported explicitly in a future detailed-statement sync.'
-       : (result.isDerived?'Derived legacy detail: reconstructed transparently because this saved round predates line-item storage.':'Stored simulated financial detail.')}</div>`
+     <div class="tb-note">${result.isOfficial
+       ? 'Official TopBoss financial statement imported through Official Sync.'
+       : (state.official?.actuals?.[String(round)]
+         ? 'Official headline actuals exist for this round, but no detailed official statement has been saved yet.'
+         : (result.isDerived?'Derived legacy detail: reconstructed transparently because this saved round predates line-item storage.':'Stored simulated financial detail.'))}</div>`
   );
 }
