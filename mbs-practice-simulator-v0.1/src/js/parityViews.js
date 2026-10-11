@@ -579,35 +579,172 @@ export function costStructureView(state, requestedRound) {
 }
 
 const METRICS = {
-  marketShare:{label:'Market Share',format:pct},
-  revenue:{label:'Revenue',format:money},
-  sales:{label:'Sales',format:num},
-  price:{label:'Price',format:money},
-  quality:{label:'Quality',format:v=>fixed(v,3)},
-  image:{label:'Image',format:v=>fixed(v,3)},
-  netProfit:{label:'Net Profit',format:money},
-  unitCost:{label:'Unit Cost',format:money},
-  npv:{label:'Practice NPV',format:money}
+  marketShare:{label:'Market Share',format:pct,kind:'share'},
+  revenue:{label:'Revenue',format:money,kind:'money-zero'},
+  sales:{label:'Sales',format:num,kind:'number-zero'},
+  price:{label:'Price',format:money,kind:'price'},
+  quality:{label:'Quality',format:v=>fixed(v,3),kind:'bounded'},
+  image:{label:'Image',format:v=>fixed(v,3),kind:'bounded'},
+  netProfit:{label:'Net Profit',format:money,kind:'money-zero'},
+  unitCost:{label:'Unit Cost',format:money,kind:'price'},
+  npv:{label:'Practice NPV',format:money,kind:'money-zero'}
 };
+
+function competitiveAxis(metricKey, values) {
+  const clean=values.map(Number).filter(Number.isFinite);
+  const minValue=Math.min(...clean,0);
+  const maxValue=Math.max(...clean,0);
+
+  if (metricKey === 'marketShare') {
+    const top=Math.max(.12, Math.ceil((maxValue*100)/4)*.04);
+    return { min:0, max:top, step:.04, format:v=>`${Math.round(v*100)}%` };
+  }
+  if (metricKey === 'price' || metricKey === 'unitCost') {
+    const actualMin=Math.min(...clean), actualMax=Math.max(...clean);
+    const min=Math.floor((actualMin-.25)*2)/2;
+    const max=Math.ceil((actualMax+.25)*2)/2;
+    return { min, max:Math.max(max,min+.5), step:.5, format:v=>`$${Number(v).toFixed(2)}` };
+  }
+  if (metricKey === 'quality' || metricKey === 'image') {
+    const actualMin=Math.min(...clean), actualMax=Math.max(...clean);
+    const min=Math.max(0,Math.floor((actualMin-.05)*10)/10);
+    const max=Math.min(1,Math.ceil((actualMax+.05)*10)/10);
+    return { min, max:Math.max(max,min+.1), step:.1, format:v=>Number(v).toFixed(2) };
+  }
+
+  const rawMin=metricKey==='netProfit' ? Math.min(minValue,0) : 0;
+  const rawMax=Math.max(maxValue,1);
+  const step=niceStep(Math.max(rawMax-rawMin,1)/4);
+  const min=Math.floor(rawMin/step)*step;
+  const max=Math.ceil(rawMax/step)*step || step;
+  const format=(metricKey==='revenue'||metricKey==='netProfit'||metricKey==='npv')
+    ? compactMoneyAxis
+    : compactNumberAxis;
+  return { min, max, step, format };
+}
+
+function competitiveRankingChart(items, metric, metricKey, round) {
+  const sorted=[...items].sort((a,b)=>b.value-a.value);
+  const max=Math.max(...sorted.map(x=>Math.abs(x.value)),1);
+  return `<div class="competitive-ranking" data-competitive-chart>
+    ${sorted.map((item,idx)=>{
+      const width=Math.max(2,Math.abs(item.value)/max*100);
+      const rank=idx+1;
+      return `<div class="competitive-rank-row ${item.isUser?'is-user':''}" data-company-key="${esc(item.key)}">
+        <span class="competitive-rank">#${rank}</span>
+        <span class="competitive-name">${esc(item.name)}</span>
+        <div class="competitive-bar-track"><div class="competitive-bar ${item.isUser?'is-user':''}" style="width:${width}%"></div></div>
+        <strong>${metric.format(item.value)}</strong>
+      </div>`;
+    }).join('')}
+    <div class="tb-note">R${round}: ranking snapshot dipakai karena baru sedikit ronde. Trend line baru digunakan setelah minimal empat ronde tersedia.</div>
+  </div>`;
+}
+
+function competitiveLineChart(series, rounds, metric, metricKey) {
+  const width=760, height=270, left=74, right=42, top=24, bottom=38;
+  const values=series.flatMap(s=>s.values).map(Number).filter(Number.isFinite);
+  const axis=competitiveAxis(metricKey,values);
+  const span=Math.max(axis.max-axis.min,1e-9);
+  const x=i=>left+(rounds.length<=1?0:i*(width-left-right)/(rounds.length-1));
+  const y=v=>height-bottom-((v-axis.min)/span)*(height-top-bottom);
+  const ticks=[];
+  for(let v=axis.min;v<=axis.max+axis.step*.1;v+=axis.step) ticks.push(Number(v.toFixed(10)));
+  const grid=ticks.map(v=>`<g><line x1="${left}" y1="${y(v)}" x2="${width-right}" y2="${y(v)}" class="tb-grid-line"/><text x="${left-10}" y="${y(v)+4}" text-anchor="end" class="competitive-axis-label">${esc(axis.format(v))}</text></g>`).join('');
+
+  const rankedLast=[...series].sort((a,b)=>(b.values.at(-1)||0)-(a.values.at(-1)||0));
+  const labelNames=new Set([series.find(s=>s.highlight)?.name,...rankedLast.slice(0,3).map(s=>s.name)].filter(Boolean));
+
+  const paths=series.map((s,idx)=>{
+    const color=s.highlight?'#1f5f99':'#aeb8c2';
+    const pts=s.values.map((v,i)=>`${x(i)},${y(Number(v)||0)}`).join(' ');
+    const last=s.values.length-1;
+    const lastValue=Number(s.values[last]||0);
+    return `<g class="competitive-series ${s.highlight?'is-user':''}" data-company-key="${esc(s.key)}">
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${s.highlight?3.2:1.3}" opacity="${s.highlight?1:.52}"/>
+      ${s.values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(Number(v)||0)}" r="${s.highlight?4:2.5}" fill="${color}"><title>${esc(s.name)} · R${rounds[i]} · ${esc(metric.format(Number(v)||0))}</title></circle>`).join('')}
+      ${labelNames.has(s.name)?`<text x="${x(last)-4}" y="${Math.max(14,y(lastValue)-8-(idx%3)*3)}" text-anchor="end" class="competitive-end-label ${s.highlight?'is-user':''}">${esc(s.name)} ${esc(metric.format(lastValue))}</text>`:''}
+    </g>`;
+  }).join('');
+
+  const labels=rounds.map((r,i)=>`<text x="${x(i)}" y="${height-10}" text-anchor="middle" class="competitive-axis-label">R${r}</text>`).join('');
+  const legend=`<div class="competitive-legend">${series.map(s=>`<button type="button" class="${s.highlight?'is-user':''}" data-competitor-toggle data-company-key="${esc(s.key)}"><i></i>${esc(s.name)}</button>`).join('')}</div>`;
+  return `<div class="tb-chart competitive-chart" data-competitive-chart><svg viewBox="0 0 ${width} ${height}">${grid}${paths}${labels}</svg>${legend}</div>`;
+}
+
+function competitiveDelta(metricKey, current, baseline, metric) {
+  const diff=current-baseline;
+  if (Math.abs(diff) < 1e-10) return '—';
+  if (metricKey==='marketShare') return `${diff>=0?'▲':'▼'} ${Math.abs(diff*100).toFixed(2)}pp`;
+  if (metricKey==='price'||metricKey==='unitCost'||metricKey==='revenue'||metricKey==='netProfit'||metricKey==='npv') {
+    return `${diff>=0?'▲':'▼'} ${metric.format(Math.abs(diff))}`;
+  }
+  if (metricKey==='quality'||metricKey==='image') return `${diff>=0?'▲':'▼'} ${Math.abs(diff).toFixed(3)}`;
+  return `${diff>=0?'▲':'▼'} ${num(Math.abs(diff))}`;
+}
 
 export function competitiveAnalysisView(state, requestedRound, metricKey='marketShare') {
   const round=selectedRound(state,requestedRound);
   const rounds=availableRounds(state);
   const metric=METRICS[metricKey]||METRICS.marketShare;
-  const series=state.companies.map(c=>({
-    name:c.name,
-    values:rounds.map(r=>Number(snapshotFor(c,r)[metricKey]||0)),
-    highlight:Boolean(c.isUser)
-  }));
-  const rows=state.companies.map(c=>[
-    {html:`<span class="${c.isUser?'tb-user-dot':''}">${esc(c.name)}</span>`},
-    ...rounds.map(r=>({html:metric.format(Number(snapshotFor(c,r)[metricKey]||0))}))
-  ]);
-  const options=Object.entries(METRICS).map(([key,item])=>`<option value="${key}" ${key===metricKey?'selected':''}>${esc(item.label)}</option>`).join('');
-  return page('Competitive Analysis','Compare company performance across rounds using the recorded-screen interaction pattern.',state,round,
-    `<div class="tb-filter-row"><label>Metric <select id="competitiveMetric">${options}</select></label></div>
-     ${panel(metric.label+' by Company',lineChart(series,rounds,metric.format))}
-     ${panel('Competitor Table',dataTable(['Company',...rounds.map(r=>'R'+r)],rows))}`
+  const baselineRound=rounds[0] ?? 0;
+
+  const items=state.companies.map((company,index)=>{
+    const current=Number(snapshotFor(company,round)[metricKey]||0);
+    const baseline=Number(snapshotFor(company,baselineRound)[metricKey]||0);
+    return {
+      key:`c${index}`,
+      company,
+      name:company.name,
+      isUser:Boolean(company.isUser),
+      value:current,
+      baseline,
+      delta:current-baseline,
+      values:rounds.map(r=>Number(snapshotFor(company,r)[metricKey]||0))
+    };
+  });
+
+  const ranked=[...items].sort((a,b)=>b.value-a.value);
+  const user=ranked.find(x=>x.isUser);
+  const userRank=Math.max(1,ranked.findIndex(x=>x.isUser)+1);
+  const leader=ranked[0];
+  const gap=(leader?.value||0)-(user?.value||0);
+  const gapText=metricKey==='marketShare'
+    ? `${(gap*100).toFixed(2)} poin`
+    : metric.format(gap);
+
+  const insight=user && leader
+    ? `R${round}: MARKOWITZ berada di peringkat #${userRank} dari ${ranked.length} untuk ${metric.label}, dengan ${metric.format(user.value)}. Pemimpin: ${leader.name} ${metric.format(leader.value)}; gap ${gapText}.`
+    : 'Belum ada data kompetitif yang cukup untuk debrief.';
+
+  const chips=Object.entries(METRICS).map(([key,item])=>`<button type="button" class="competitive-chip ${key===metricKey?'active':''}" data-competitive-metric="${key}">${esc(item.label)}</button>`).join('');
+
+  const visual=rounds.length<4
+    ? competitiveRankingChart(items,metric,metricKey,round)
+    : competitiveLineChart(items.map(x=>({key:x.key,name:x.name,values:x.values,highlight:x.isUser})),rounds,metric,metricKey);
+
+  const tableRows=ranked.map((item,idx)=>{
+    const delta=competitiveDelta(metricKey,item.value,item.baseline,metric);
+    const deltaClass=item.delta>0?'good':item.delta<0?'bad':'neutral';
+    const cls=item.isUser?'competitive-user-row':'';
+    return [
+      {html:`#${idx+1}`,className:cls},
+      {html:`<span data-company-key="${esc(item.key)}">${esc(item.name)}</span>`,className:`competitive-company-cell ${cls}`},
+      ...rounds.map(r=>({html:metric.format(Number(snapshotFor(item.company,r)[metricKey]||0)),className:cls})),
+      {html:delta,className:`${deltaClass} ${cls}`}
+    ];
+  });
+
+  const baselineNote=metricKey==='marketShare' && baselineRound===0
+    ? `<div class="tb-note">R0 adalah equal-share baseline: ${state.companies.length} perusahaan × ${(100/state.companies.length).toFixed(2)}% = 100%.</div>`
+    : '';
+
+  return page('Competitive Analysis','Rank competitors first, then use multi-round trends when enough history is available.',state,round,
+    `<div class="competitive-chip-row">${chips}</div>
+     <div class="competitive-insight"><strong>AUTOMATIC DEBRIEF</strong><span>${esc(insight)}</span></div>
+     ${panel(metric.label+' by Company',visual)}
+     ${baselineNote}
+     ${panel('Competitor Table',dataTable(['Rank','Company',...rounds.map(r=>'R'+r),'Δ vs R'+baselineRound],tableRows,'competitive-table'))}`
   );
 }
 

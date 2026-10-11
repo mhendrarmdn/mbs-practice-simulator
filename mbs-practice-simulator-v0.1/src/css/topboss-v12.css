@@ -2041,3 +2041,227 @@ body{
   background:#fff0f0;
   color:#8e2424;
 }
+
+
+/* v1.5.0 — Competitive Analysis decision support */
+.competitive-chip-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:0 0 12px;
+}
+.competitive-chip{
+  border:1px solid #cdd8e2;
+  border-radius:999px;
+  background:#fff;
+  color:#52677a;
+  padding:7px 11px;
+  font:600 9px 'IBM Plex Sans',sans-serif;
+  cursor:pointer;
+}
+.competitive-chip:hover{
+  border-color:#8fb0ca;
+  color:#245b91;
+}
+.competitive-chip.active{
+  background:#1f5f99;
+  border-color:#1f5f99;
+  color:#fff;
+}
+.competitive-insight{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:12px;
+  padding:10px 12px;
+  border:1px solid #bcd5e8;
+  border-left:4px solid #2d8ccc;
+  border-radius:5px;
+  background:#f4faff;
+  color:#50687c;
+  font-size:10px;
+  line-height:1.5;
+}
+.competitive-insight strong{
+  flex:none;
+  color:#1f5f99;
+  font-size:9px;
+  letter-spacing:.04em;
+}
+.competitive-ranking{
+  display:grid;
+  gap:7px;
+}
+.competitive-rank-row{
+  display:grid;
+  grid-template-columns:36px 150px minmax(120px,1fr) 110px;
+  gap:9px;
+  align-items:center;
+  padding:5px 7px;
+  border-radius:4px;
+  transition:background .15s ease,opacity .15s ease;
+}
+.competitive-rank-row:nth-child(even){
+  background:#fafbfd;
+}
+.competitive-rank-row.is-user{
+  background:#eef6fc;
+  box-shadow:inset 3px 0 #1f5f99;
+}
+.competitive-rank-row.is-hovered{
+  background:#e8f3fb;
+}
+.competitive-rank,
+.competitive-name,
+.competitive-rank-row>strong{
+  font:600 10px 'IBM Plex Sans',sans-serif;
+}
+.competitive-rank{color:#738597}
+.competitive-name{
+  color:#334f68;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.competitive-rank-row.is-user .competitive-name,
+.competitive-rank-row.is-user>strong{
+  color:#15568f;
+}
+.competitive-rank-row>strong{text-align:right}
+.competitive-bar-track{
+  height:11px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#edf1f4;
+}
+.competitive-bar{
+  height:100%;
+  border-radius:999px;
+  background:#aeb8c2;
+}
+.competitive-bar.is-user{background:#1f5f99}
+
+.competitive-chart svg{
+  height:260px!important;
+  overflow:visible;
+}
+.competitive-axis-label{
+  fill:#65798c;
+  font:500 10px 'IBM Plex Sans',sans-serif;
+}
+.competitive-series{
+  transition:opacity .15s ease;
+}
+.competitive-series.is-hovered polyline{
+  stroke:#ef9e2f!important;
+  stroke-width:3!important;
+  opacity:1!important;
+}
+.competitive-series.is-hovered circle{
+  fill:#ef9e2f!important;
+}
+.competitive-series.is-hidden{
+  opacity:.07;
+  pointer-events:none;
+}
+.competitive-end-label{
+  fill:#65798c;
+  font:600 8px 'IBM Plex Sans',sans-serif;
+}
+.competitive-end-label.is-user{
+  fill:#15568f;
+  font-weight:700;
+}
+.competitive-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:7px;
+}
+.competitive-legend button{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  border:1px solid #d8e0e7;
+  border-radius:999px;
+  background:#fff;
+  color:#6c7d8c;
+  padding:4px 8px;
+  font:500 8px 'IBM Plex Sans',sans-serif;
+  cursor:pointer;
+}
+.competitive-legend button i{
+  width:8px;height:8px;border-radius:50%;background:#aeb8c2;
+}
+.competitive-legend button.is-user{
+  color:#15568f;
+  border-color:#aac6dc;
+  font-weight:700;
+}
+.competitive-legend button.is-user i{background:#1f5f99}
+.competitive-legend button.is-hidden{
+  opacity:.38;
+  text-decoration:line-through;
+}
+.competitive-table th:first-child,
+.competitive-table td:first-child{
+  width:54px;
+  text-align:center!important;
+}
+.competitive-table th:nth-child(2),
+.competitive-table td:nth-child(2){
+  width:190px;
+  text-align:left!important;
+}
+.competitive-table tbody tr:nth-child(even) td{
+  background:#fafbfd;
+}
+.competitive-table td.competitive-user-row{
+  background:#edf6fc!important;
+  font-weight:700;
+}
+.competitive-company-cell{
+  text-align:left!important;
+}
+
+/* v1.5.0 — Captain recovery */
+.captain-recovery-card{
+  display:grid;
+  gap:7px;
+  padding:12px;
+  border:1px solid #cbd9e4;
+  border-left:4px solid #1f5f99;
+  border-radius:5px;
+  background:#f7fbfe;
+}
+.captain-recovery-card span{
+  color:#6f8192;
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.captain-recovery-card strong{
+  color:#154f82;
+  font:700 16px 'IBM Plex Mono',monospace;
+  letter-spacing:.08em;
+  overflow-wrap:anywhere;
+}
+.captain-recovery-card small{
+  color:#66798b;
+  font-size:9px;
+  line-height:1.45;
+}
+.captain-recovery-card button{
+  width:max-content;
+  margin-top:2px;
+}
+
+@media(max-width:760px){
+  .competitive-insight{display:block}
+  .competitive-insight strong{display:block;margin-bottom:4px}
+  .competitive-rank-row{
+    grid-template-columns:34px minmax(90px,1fr) 90px;
+  }
+  .competitive-bar-track{grid-column:2/4}
+}
