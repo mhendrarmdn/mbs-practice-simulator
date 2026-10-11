@@ -1,6 +1,44 @@
 # Changelog
 
+## v1.8.0 — Adaptive Calibration Lab
+
+### Learn from official rounds
+- Adds **Calibration Lab** under Practice Tools.
+- Pairs preserved simulator predictions with official TopBoss actuals by round.
+- Computes transparent correction factors for:
+  - Total market-size scale
+  - User-company competitive share response
+  - Production realization
+  - Unit cost
+  - Quality response
+  - Image response
+
+### Anti-overfitting controls
+- Corrections use robust median error rather than the last round alone.
+- Small samples are shrunk toward neutral:
+  - 1 round ≈ 33% correction weight
+  - 2 rounds = 50%
+  - 3 rounds = 60%
+  - 4 rounds ≈ 67%
+- Every factor has a hard safety bound.
+- Calibration shows confidence, uncertainty band, and mean absolute error.
+
+### Forecast integration
+- Adaptive calibration is used by the next-round simulator when enabled.
+- Scenario Center / Competition Center inherit the same calibrated simulator.
+- Robust Optimizer now includes official calibration state in its cache signature and evaluates candidates through the calibrated engine.
+
+### Auditability
+- Round snapshots record the calibration profile used for that prediction.
+- Excel export adds a **Calibration Lab** sheet containing factors, confidence, uncertainty, and historical round errors.
+- Captain can pause/re-enable adaptive calibration for A/B comparison against the raw practice model.
+
+### Database
+- No new Supabase migration is required.
+- Calibration settings remain inside the existing revision-safe room-state JSON.
+
 ## v1.7.0 — Vision Intake + Official Financial Sync
+
 
 ### Multi-screenshot OCR draft
 - Official Sync accepts up to 6 TopBoss screenshots in one intake batch.

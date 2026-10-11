@@ -22,6 +22,7 @@ import {
 } from './config.js';
 import { snapshot, userCompany } from './state.js';
 import { officialEnvironmentForRound } from './officialSync.js';
+import { adaptiveCalibrationProfile } from './calibrationEngine.js';
 import { clamp, rngFrom } from './utils.js';
 
 export function normalizeDecision(decision) {
@@ -145,6 +146,15 @@ export function simulateRound(state) {
   const rdWeight = calibrated ? ATTRACTIVENESS_RD_WEIGHT : 0.05;
   const directUnitCostBase = calibrated ? DIRECT_UNIT_COST_BASE : 3.24;
   const economy = economyForRound(state, round);
+  const adaptive = adaptiveCalibrationProfile(state);
+  const calibration = adaptive.active ? adaptive.factors : {
+    marketSizeFactor: 1,
+    shareFactor: 1,
+    productionFactor: 1,
+    unitCostFactor: 1,
+    qualityShift: 0,
+    imageShift: 0
+  };
   const decisions = state.companies.map(company => (
     company.isUser ? normalizeDecision(state.draft) : normalizeDecision(aiDecision(company, round))
   ));
@@ -158,11 +168,13 @@ export function simulateRound(state) {
     const conversionFactor = Number(company.conversionFactor || TARGET_CONVERSION_FACTOR);
 
     const quality = clamp(
-      company.quality + qualityResponse * Math.log1p(decision.rd / 200000) - 0.005,
+      company.quality + qualityResponse * Math.log1p(decision.rd / 200000) - 0.005 +
+      (company.isUser ? calibration.qualityShift : 0),
       0.10, 0.95
     );
     const image = clamp(
-      company.image + imageResponse * Math.log1p(decision.marketing / 150000) - 0.015,
+      company.image + imageResponse * Math.log1p(decision.marketing / 150000) - 0.015 +
+      (company.isUser ? calibration.imageShift : 0),
       0.10, 0.95
     );
 
@@ -178,7 +190,10 @@ export function simulateRound(state) {
     // The exact proprietary conversion equation is unknown. Keep a bounded, transparent efficiency proxy
     // centered on the workbook's ~0.7 reference.
     const efficiencyIndex = clamp(conversionFactor / TARGET_CONVERSION_FACTOR, 0.80, 1.03);
-    const production = requestedBeforeEfficiency * efficiencyIndex;
+    const production = Math.min(
+      requestedBeforeEfficiency,
+      requestedBeforeEfficiency * efficiencyIndex * (company.isUser ? calibration.productionFactor : 1)
+    );
     const materialConsumed = Math.min(beginRawMaterial, production * MATERIAL_PER_UNIT);
     const procurementDelivered = decision.materialPurchase;
     const rawMaterialEnd = Math.max(0, beginRawMaterial - materialConsumed + procurementDelivered);
@@ -197,7 +212,7 @@ export function simulateRound(state) {
       ((decision.price / 6.40) - 1) * ATTRACTIVENESS_PRICE_WEIGHT +
       Math.log1p(decision.marketing / 180000) * marketingWeight +
       Math.log1p(decision.rd / 220000) * rdWeight
-    );
+    ) * (company.isUser ? calibration.shareFactor : 1);
 
     return {
       decision, quality, image, beginCapacity, effectiveCapacity, maxProductionCapacity,
@@ -207,7 +222,7 @@ export function simulateRound(state) {
   });
 
   const totalAttractiveness = provisional.reduce((sum, item) => sum + item.attractiveness, 0);
-  const marketSize = BASE_MARKET_SIZE * economy.demandFactor;
+  const marketSize = BASE_MARKET_SIZE * economy.demandFactor * calibration.marketSizeFactor;
 
   state.companies.forEach((company, index) => {
     const p = provisional[index];
@@ -222,7 +237,8 @@ export function simulateRound(state) {
 
     const conversionWaste = clamp((TARGET_CONVERSION_FACTOR - p.conversionFactor) / TARGET_CONVERSION_FACTOR, -0.05, 0.25);
     const overtimePenalty = Math.max(0, utilization - 1) * 0.40;
-    const directUnitCost = directUnitCostBase * economy.rawIndex * (1 + conversionWaste) + overtimePenalty;
+    const directUnitCost = (directUnitCostBase * economy.rawIndex * (1 + conversionWaste) + overtimePenalty) *
+      (company.isUser ? calibration.unitCostFactor : 1);
 
     const purchaseCost = decision.materialPurchase * MATERIAL_PRICE * economy.rawIndex;
     const depreciation = 90000 + decision.equipment * 0.08;
@@ -371,7 +387,14 @@ export function simulateRound(state) {
           roce
         }
       },
-      lastDecision: decision
+      lastDecision: decision,
+      calibration: company.isUser && adaptive.active ? {
+        version: 'adaptive-v18',
+        confidence: adaptive.confidence,
+        samples: adaptive.samples,
+        uncertaintyPct: adaptive.uncertaintyPct,
+        factors: { ...calibration }
+      } : null
     });
 
     company.history.push(snapshot(company, round, decision, economy, {

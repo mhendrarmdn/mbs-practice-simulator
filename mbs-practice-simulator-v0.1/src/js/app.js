@@ -684,6 +684,17 @@ function bindEvents() {
         alert('Detailed official financial statement R' + round + ' tersimpan. Financial Statement page sekarang memprioritaskan data resmi.');
         render(false);
 
+      } else if (action === 'toggle-adaptive-calibration') {
+        if (!captainOnly('Adaptive calibration')) return;
+        state.adaptiveCalibration = state.adaptiveCalibration || { enabled: true };
+        state.adaptiveCalibration.enabled = state.adaptiveCalibration.enabled === false;
+        persistLocal();
+        if (state.roomCode) await commitCanonicalState();
+        alert(state.adaptiveCalibration.enabled
+          ? 'Adaptive calibration aktif. Simulator, scenario stress-test, dan Robust Optimizer akan memakai correction dari official prediction error.'
+          : 'Adaptive calibration dipause. Simulator kembali ke transparent practice model tanpa learned correction.');
+        render(false);
+
       } else if (action === 'load-r1') {
         state.draft = deepClone(ROUND1_REFERENCE);
         persistLocal();

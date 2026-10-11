@@ -46,7 +46,8 @@ export function snapshot(company, round, decision, economy, operational = {}) {
     profitMargin: company.profitMargin,
     npv: company.npv,
     balancedScore: company.balancedScore,
-    financial: deepClone(company.financial || null)
+    financial: deepClone(company.financial || null),
+    calibration: deepClone(company.calibration || null)
   };
 }
 

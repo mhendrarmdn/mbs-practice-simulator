@@ -5,6 +5,7 @@ import { strategyAlignment } from './strategySystem.js';
 import { userCompany } from './state.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
 import { reconciliationForRound } from './officialSync.js';
+import { adaptiveCalibrationProfile, calibrationFactorRows, calibrationRoundRows } from './calibrationEngine.js';
 
 function addSheet(book, name, rows, widths = []) {
   const sheet = Array.isArray(rows?.[0])
@@ -160,6 +161,31 @@ function evidenceRows(state) {
     })));
 }
 
+function calibrationRows(state) {
+  const profile=adaptiveCalibrationProfile(state);
+  return [
+    ['Adaptive Calibration', profile.active ? 'ACTIVE' : 'PAUSED / WAITING'],
+    ['Official Samples', profile.samples],
+    ['Confidence %', profile.confidence],
+    ['Uncertainty %', profile.uncertaintyPct],
+    ['Mean Absolute Error %', profile.meanAbsErrorPct ?? ''],
+    ['Shrinkage Weight', profile.weight ?? 0],
+    [],
+    ['Factor','Value','Meaning'],
+    ...calibrationFactorRows(state).map(row=>[row.label,row.value,row.meaning]),
+    [],
+    ['Round','Revenue Error','Profit Error','Sales Error','Share Error','Unit Cost Error'],
+    ...calibrationRoundRows(state).map(row=>[
+      `R${row.round}`,
+      row.revenueError ?? '',
+      row.profitError ?? '',
+      row.salesError ?? '',
+      row.shareError ?? '',
+      row.costError ?? ''
+    ])
+  ];
+}
+
 export function exportWorkbookExcel(state) {
   const book = XLSX.utils.book_new();
   const user = userCompany(state);
@@ -196,6 +222,7 @@ export function exportWorkbookExcel(state) {
   addSheet(book, 'Reconciliation', reconciliationRows(state), [10,22,18,18,18,14]);
   addSheet(book, 'OCR Audit', officialOcrRows(state), [10,14,10,16,30,12,24]);
   addSheet(book, 'Evidence Log', evidenceRows(state), [10,32,18,14,18,14,24]);
+  addSheet(book, 'Calibration Lab', calibrationRows(state), [28,20,72,18,18,18]);
 
   addSheet(book, 'Strategy Alignment', [
     ['Selected Goal', strategy.goal.label],
