@@ -1,37 +1,32 @@
 # Changelog
 
-## v1.4.2 — Calibration Runtime Consistency Hotfix
+## v1.4.3 — Portable Supabase Multiplayer Config
 
-### Critical runtime fix
-- Fixes `QUALITY_RD_RESPONSE is not defined` when submitting a round.
-- Restores the full v1.4 calibration constant set in `config.js`.
-- Ensures `simulator.js` imports and actually uses the fitted calibration coefficients.
-- Restores the controlled Workbook R1 calibration environment and demand factor.
-- Restores the expanded 15-metric Calibration Lab target set and fidelity diagnostics.
+### Incognito / second-device fix
+- Supabase connection no longer depends exclusively on browser localStorage.
+- Supports Vercel/Vite deployment defaults:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY` as an alternate key variable.
+- Browser-saved config still works as an override.
+- Empty setup fields no longer overwrite valid deployment defaults.
 
-### Version / cache consistency
-- UI badge, package metadata, document title, and state version now agree on v1.4.2.
-- Adds cache-busting query strings to the main JS/CSS assets so browsers do not mix an old shell with newer modules after deployment.
+### Room & Setup
+- Shows whether the current Supabase connection came from Deployment default, Browser override, or Not configured.
+- Improves the error message when a fresh Incognito/device has no Supabase configuration.
 
-### R0 chart behavior clarified
-- R0 Revenue / Sales Status intentionally shows a Revenue / Profit snapshot rather than a line chart because there is only one period.
-- R0 Sales Trend intentionally shows an operating bar snapshot.
-- Both pages now explain that line trends appear after Round 1 creates the second data point.
-
-### Competition / Optimizer
-- Keeps the v1.4.1 scenario-isolation and safe-render protections.
-
-### Supabase room note
-- The pgcrypto room error is separate from the chart / calibration bug.
-- If online rooms still show the pgcrypto migration prompt, run `supabase/fix_pgcrypto_search_path_v131.sql` once in Supabase SQL Editor.
+### Security
+- Only the public anon/publishable key belongs in these client-side deployment variables.
+- Never use a Supabase service-role key in Vercel client-side variables.
 
 ### Database
-- No new Supabase migration for v1.4.2.
+- No Supabase SQL migration required for v1.4.3.
+- The v1.3.1 pgcrypto migration remains required once per Supabase project.
+
+## v1.4.2 — Calibration Runtime Consistency Hotfix
+
+Restored Phase-1 constants/imports, controlled Workbook calibration environment, cache consistency, and R0 snapshot clarification.
 
 ## v1.4.1 — Competition / Optimizer Stability Hotfix
 
 Scenario isolation, memoization, lighter optimizer workload, and safe render recovery.
-
-## v1.4.0 — Logic Calibration Phase 1
-
-Transparent in-sample R0→R1 calibration with measurable fidelity reporting.
