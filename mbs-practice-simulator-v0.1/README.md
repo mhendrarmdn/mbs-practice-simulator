@@ -1,9 +1,28 @@
-# MBS Practice Simulator v1.8.0
+# MBS Official Twin + Strategy Lab v2.0.0
 
-Independent web-based training simulator for Macro Business Simulation / TopBoss-style competition practice.
+> **v2.0 boundary:** this repository now separates what is verified from the official Student Workbook / Competition Booklet / captured TopBoss interface from what is derived, calibrated, assumed, or still unknown. The existing simulator remains a practice engine; unknown proprietary formulas are never presented as exact TopBoss formulas.
 
-> This is a **training twin and competition decision cockpit**, not an official TopBoss clone. v1.8 keeps TopBoss as the official source of truth and adds adaptive, bounded calibration from official prediction-vs-actual pairs so later-round decision analysis can learn from earlier model error.
+## v2.0 — Official Twin foundation
 
+- Added a dedicated **Official Twin** landing page before the practice tools.
+- Added an evidence registry with five levels: **Confirmed, Derived, Calibrated, Assumption, Unknown**.
+- Kept the existing TopBoss-style dashboard/status/analysis/financial pages and Official Sync workflow.
+- Preserved Strategy Lab, Robust Optimizer, Decision War Room, workbook lab, team room, Excel export, and calibration tooling.
+- Explicitly marks demand elasticity, market-share transfer, official NPV, balanced scorecard, raw-material price competition, and several accounting functions as not yet confirmed.
+- Confirmed workbook mechanics include the eight decision levers, one-round procurement lag, 50% overtime cap, 2.5% capacity aging, $20/unit capacity expansion cost, ~0.7 conversion-factor target, and one-round lag for maintenance/equipment effects.
+
+## Competition objective
+
+The 2026 booklet states that teams aim for the highest NPV after four game rounds while tracking balanced-scorecard performance. The preliminary round uses four rounds; finalists face four fixed rounds with up to two surprise rounds. Because the exact NPV/balanced-score formulas are not published in the supplied materials, v2.0 treats those outputs as practice estimates until calibrated against official results.
+
+## Source-of-truth hierarchy
+
+1. Captured TopBoss interface / HAR for layout, route names, page structure, and observed official outputs.
+2. Student Workbook for documented game mechanics and decision relationships.
+3. Competition Booklet for tournament structure, objective, and round format.
+4. Simulator engine only for transparent practice estimates and scenario analysis.
+
+---
 ## v1.0 focus — TopBoss Workflow Parity + Full Financial Statements
 
 ### Collapsible sidebar

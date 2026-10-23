@@ -1,5 +1,6 @@
 import '../css/app.css';
 import '../css/topboss-v12.css';
+import '../css/official-twin-v2.css';
 import { MAX_ROUNDS, OPTIMIZER_RISK_PROFILES, ROUND1_REFERENCE, ROLE_KEY, SCENARIO_PRESETS, STRATEGY_GOALS, WORKBOOK_RESULT_ROUNDS } from './config.js';
 import { makeInitialState, loadState, migrateState, saveLocal, userCompany } from './state.js';
 import { simulateRound } from './simulator.js';
@@ -35,7 +36,7 @@ import { normalizeDecision } from './simulator.js';
 
 const root = document.querySelector('#app');
 let state = loadState();
-let activeTab = 'dashboard';
+let activeTab = 'officialTwin';
 const SIDEBAR_KEY = 'mbs_sidebar_collapsed_desktop_v101';
 const mobileSidebarQuery = window.matchMedia('(max-width: 900px)');
 const storedSidebar = localStorage.getItem(SIDEBAR_KEY);
