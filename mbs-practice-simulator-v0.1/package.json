@@ -1,6 +1,6 @@
 {
   "name": "mbs-practice-simulator",
-  "version": "1.9.1",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,5 +14,6 @@
   },
   "devDependencies": {
     "vite": "^5.4.10"
-  }
+  },
+  "description": "MBS Official Twin and Strategy Lab for evidence-led competition practice."
 }

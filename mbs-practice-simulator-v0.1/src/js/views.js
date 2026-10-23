@@ -10,6 +10,7 @@ import { robustOptimize } from './robustOptimizer.js';
 import { availableFinancialRounds, financialForRound } from './financialStatement.js';
 import { officialSyncView } from './officialSyncView.js';
 import { calibrationLabView } from './calibrationView.js';
+import { officialTwinView } from './officialTwinView.js';
 import { warRoomView } from './warRoom.js';
 import {
   parityDashboardView,
@@ -30,6 +31,7 @@ import {
 import { esc, fixed, money, num, pct } from './utils.js';
 
 const NAV_ICONS = {
+  officialTwin: 'OT',
   dashboard: 'MD',
   decisions: 'BD',
   history: 'DH',
@@ -114,9 +116,13 @@ export function shell(state, activeTab, themePreference, ui = {}) {
       <aside class="sidebar ${collapsed ? 'collapsed' : ''}">
         <div class="brand">
           <div class="brand-mark">M</div>
-          <div class="brand-copy"><strong>MBS ARENA</strong><small>Practice Simulator v1.9.1</small></div>
+          <div class="brand-copy"><strong>MBS ARENA</strong><small>Official Twin + Strategy Lab v2.0.0</small></div>
         </div>
         <nav class="nav">
+          ${navGroup('OFFICIAL TWIN', [
+            ['officialTwin','Official Twin'],
+            ['officialSync','Official Sync']
+          ], activeTab)}
           ${navGroup('MANAGEMENT', [
             ['dashboard','Management Dashboard'],
             ['decisions','Business Decisions'],
@@ -124,7 +130,6 @@ export function shell(state, activeTab, themePreference, ui = {}) {
           ], activeTab)}
           ${navGroup('STATUS', [
             ['economy','Economic Environment'],
-            ['officialSync','Official Sync'],
             ['businessStatus','Business Status'],
             ['productImage','Product Image'],
             ['marketShare','Market Share'],
@@ -156,8 +161,8 @@ export function shell(state, activeTab, themePreference, ui = {}) {
           ], activeTab)}
         </nav>
         <div class="sidebar-bottom">
-          <strong>TRAINING MODEL</strong>
-          <p>Independent practice engine. Proprietary TopBoss formulas remain unknown.</p>
+          <strong>OFFICIAL + PRACTICE LAYERS</strong>
+          <p>Confirmed rules are separated from calibrated proxies and unknown TopBoss formulas.</p>
         </div>
       </aside>
       <button class="sidebar-scrim" data-action="toggle-sidebar" aria-label="Tutup sidebar"></button>
@@ -1027,6 +1032,7 @@ export function setupView(state) {
 
 export function bodyForTab(state, activeTab, ui = {}) {
   switch (activeTab) {
+    case 'officialTwin': return officialTwinView(state);
     case 'competition': return competitionView(state);
     case 'warroom': return warRoomView(state);
     case 'workbook': return workbookView(state);
